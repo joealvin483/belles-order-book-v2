@@ -407,8 +407,9 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
 }
 .paybtn.on{background:var(--rose);border-color:var(--rose);color:#fff}
 .qtotals{margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}
-.changerow .v{font-size:22px;font-weight:600}
-.changerow .k{font-weight:600}
+.changerow{background:var(--blush);border-radius:9px;padding:8px 10px;margin:6px 0}
+.changerow .v{font-size:26px;font-weight:700;color:var(--rose-deep)}
+.changerow .k{font-weight:700;font-size:12px;letter-spacing:.06em;color:var(--rose-deep)}
 .proofrow{display:flex;gap:11px;align-items:flex-start}
 .proofrow img{width:78px;height:78px;object-fit:cover;border-radius:9px;border:1px solid var(--line)}
 
@@ -430,6 +431,11 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
 .daybreak{margin-bottom:4px}
 .flagline{font-size:13px;padding:5px 0}
 .flagline.warn{color:var(--warn)}
+.row.c3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:560px){ .row.c3{grid-template-columns:1fr 1fr} }
+.req{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--bad);margin-left:5px}
+input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)}
 .qidbox{
   font-family:var(--sans);font-variant-numeric:tabular-nums;letter-spacing:.02em;
   font-size:23px;font-weight:600;text-align:center;padding:13px 10px;margin:2px 0 12px;
@@ -858,35 +864,44 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
 
     <div class="card">
       <p class="eyebrow">Quick entry</p>
-      <h3>From the sizing slip</h3>
-      <p class="sub">Type the number written on the paper. Everything else is filled in at the end of the day.</p>
+      <div class="qidbox dim" id="qIdPreview">Type the paper number</div>
       <div class="row c2">
-        <div class="field"><label for="qNum">Paper number</label>
-          <input type="text" id="qNum" inputmode="numeric" placeholder="1" autocomplete="off"
+        <div class="field"><label for="qNum">Paper number <span class="req">required</span></label>
+          <input type="text" id="qNum" inputmode="numeric" autocomplete="off" required
             oninput="quickPreview()" onkeydown="if(event.key==='Enter'){event.preventDefault();$('qPhone').focus();}"></div>
         <div class="field"><label for="qDate">Slip date</label>
           <input type="date" id="qDate" onchange="quickPreview()"></div>
       </div>
-      <div class="qidbox" id="qIdPreview">ORD000-000000</div>
-      <div class="field"><label for="qPhone">Phone</label>
-        <input type="tel" id="qPhone" inputmode="numeric" maxlength="13" placeholder="09XXXXXXXXX" autocomplete="off"></div>
+      <div class="field"><label for="qPhone">Phone <span class="req">required</span></label>
+        <input type="tel" id="qPhone" inputmode="numeric" maxlength="13" placeholder="09XXXXXXXXX" autocomplete="off" required></div>
+      <div class="row c2">
+        <div class="field"><label for="qSchool">School / company</label>
+          <select id="qSchool" onchange="qSchoolChange()"></select></div>
+        <div class="field"><label for="qDept">Department</label>
+          <select id="qDept" onchange="qDeptChange()"></select></div>
+      </div>
     </div>
 
     <div class="card">
       <p class="eyebrow">Garment</p>
       <h3>What are we making</h3>
+      <p class="sub" id="qProdHint"></p>
       <div class="field"><label for="qProduct">Product</label>
         <select id="qProduct" onchange="quickProductChange()"></select></div>
-      <div class="row c2">
+      <div class="row c3">
         <div class="field"><label for="qSizing">Sizing</label>
           <select id="qSizing" onchange="quickPrice()"></select></div>
-        <div class="field"><label for="qSet">Pieces in set</label>
+        <div class="field"><label for="qSet">Pieces</label>
           <select id="qSet" onchange="quickRecalc()">
             <option>1</option><option>2</option><option>3</option><option>4</option>
             <option>5</option><option>6</option><option>7</option><option>8</option>
             <option>9</option><option>10</option><option>11</option><option>12</option>
           </select></div>
+        <div class="field"><label for="qPrice">Price each ₱</label>
+          <input type="text" id="qPrice" inputmode="decimal" oninput="quickRecalc(true)"></div>
       </div>
+      <button type="button" class="btn btn-ghost btn-block btn-sm" onclick="qAddGarment()">+ Add this garment, start another</button>
+      <div id="qLineList"></div>
     </div>
 
     </div>
@@ -894,16 +909,11 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
 
     <div class="card">
       <p class="eyebrow">Money</p>
-      <h3>Price and payment</h3>
-      <div class="row c2">
-        <div class="field"><label for="qPrice">Price per piece ₱</label>
-          <input type="text" id="qPrice" inputmode="decimal" oninput="quickRecalc(true)"></div>
-        <div class="field"><label for="qTotal">Order total ₱</label>
-          <input type="text" id="qTotal" inputmode="decimal"
-            oninput="this.dataset.touched='1';quickBalance()"></div>
-      </div>
+      <h3>Payment</h3>
+      <div class="field"><label for="qTotal">Order total ₱</label>
+        <input type="text" id="qTotal" inputmode="decimal"
+          oninput="this.dataset.touched='1';quickBalance()"></div>
 
-      <hr class="rule">
       <label>Payment method</label>
       <div class="paybtns">
         <button type="button" class="paybtn on" data-mode="Cash" onclick="setQuickMode('Cash')">Cash</button>
@@ -918,18 +928,14 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
         </select>
       </div>
 
-      <div class="row c2">
-        <div class="field"><label for="qPaid">Paying now ₱</label>
-          <input type="text" id="qPaid" inputmode="decimal" oninput="quickBalance()"></div>
-        <div class="field" id="qCashWrap"><label for="qCash">Cash given ₱</label>
-          <input type="text" id="qCash" inputmode="decimal" oninput="quickBalance()"></div>
-      </div>
-      <button type="button" class="btn btn-ghost btn-block btn-sm" onclick="quickFullPayment()">Full payment</button>
+      <div class="field"><label for="qCash" id="qCashLabel">Cash given by customer ₱</label>
+        <input type="text" id="qCash" inputmode="decimal" oninput="quickBalance()" placeholder="0.00"></div>
+      <button type="button" class="btn btn-ghost btn-block btn-sm" onclick="quickFullPayment()">Paying the exact amount</button>
 
       <div id="qProofWrap" style="display:none">
         <hr class="rule">
         <label>GCash proof</label>
-        <p class="sub" style="margin:0 0 8px">Photograph the confirmation on the customer's phone before saving.</p>
+        <p class="sub" style="margin:0 0 8px">Photograph the confirmation before saving.</p>
         <input type="file" id="qProofFile" accept="image/*" capture="environment" style="display:none">
         <div id="qProofBox"></div>
       </div>
@@ -938,14 +944,10 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
     </div>
 
     <div class="card">
-      <p class="eyebrow">Save</p>
-      <h3>Add to the day's list</h3>
-      <p class="sub">Saved as needing details. Finish it tonight from Find → Needs completing.</p>
       <div class="btn-row">
-        <button type="button" class="btn btn-primary" onclick="saveQuickOrder()">Save quick order</button>
-        <button type="button" class="btn btn-ghost" onclick="resetQuick()">Clear</button>
+        <button type="button" class="btn btn-primary" style="flex:1" onclick="saveQuickOrder()">Save order</button>
+        <button type="button" class="btn btn-ghost" onclick="clearQuick()">Clear</button>
       </div>
-      <div id="qRecent"></div>
     </div>
 
     </div>
@@ -2065,32 +2067,59 @@ function quickDate(){
 function quickPreview(){
   var id = quickOrderId($('qNum').value, quickDate());
   var box = $('qIdPreview');
-  box.textContent = id || (quickPrefix() + '000-' + mmddyy(today()));
+  box.textContent = id || 'Type the paper number';
   box.classList.toggle('dim', !id);
   var clash = id && DB.orders.filter(function(o){ return o.orderId === id; })[0];
   box.classList.toggle('clash', !!clash);
   if(clash) box.textContent = id + '  ·  already used';
 }
 
+var quickMode = 'Cash', quickProof = null, qLines = [];
+
 function initQuick(){
   if($('qDate') && !$('qDate').value) $('qDate').value = ymd(today());
-  fillQuickProducts();
+  fillSelect('qSchool', DB.schools, (DB.lastUsed && DB.lastUsed.companySchool) || '');
+  qSchoolChange(true);
   quickPreview();
+  qRenderLines();
+  setQuickMode(quickMode);
   setTimeout(function(){ if($('qNum')) $('qNum').focus(); }, 80);
 }
-/* Quick entry has no school picked, so every product is on offer. The name is
-   enough to find its price, and the evening pass sets the school. */
+
+/* School narrows the departments; school and department together narrow the
+   products, exactly as they do on the full order form. */
+function qSchoolChange(keepDept){
+  var school = $('qSchool').value;
+  var want = keepDept ? ((DB.lastUsed && DB.lastUsed.department) || '') : '';
+  var list = departmentNames(school);
+  if(want && list.indexOf(want) === -1) want = '';
+  $('qDept').innerHTML = '<option value=""></option>' + list.map(function(d){
+    return '<option value="'+esc(d)+'">'+esc(d)+'</option>'; }).join('');
+  $('qDept').value = want;
+  qDeptChange();
+}
+function qDeptChange(){ fillQuickProducts(); }
+
 function fillQuickProducts(){
   if(!$('qProduct')) return;
-  var names = uniqueProductNames().sort();
+  var school = $('qSchool').value, dept = $('qDept').value;
   var keep = $('qProduct').value;
+  var list = productsFor(school, dept);
+  var seen = {}, names = [];
+  list.forEach(function(p){ if(!seen[p.name]){ seen[p.name] = 1; names.push(p.name); } });
+  names.sort();
   $('qProduct').innerHTML = '<option value=""></option>' + names.map(function(n){
     return '<option value="'+esc(n)+'">'+esc(n)+'</option>'; }).join('');
   if(keep && names.indexOf(keep) > -1) $('qProduct').value = keep;
+  if($('qProdHint')){
+    $('qProdHint').textContent = !DB.products.length ? 'No products yet — add them under Lists.'
+      : (!school ? 'Pick the school first.'
+        : (names.length ? '' : 'No products for ' + school + (dept ? ' · ' + dept : '') + ' yet.'));
+    $('qProdHint').style.display = $('qProdHint').textContent ? '' : 'none';
+  }
 }
 function quickProductChange(){
-  var name = $('qProduct').value;
-  var p = DB.products.filter(function(x){ return x.name === name; })[0];
+  var p = productFor($('qProduct').value, $('qSchool').value, $('qDept').value);
   var sizes = (p && p.sizes && p.sizes.length)
     ? p.sizes.map(function(z){ return z.size; })
     : DEFAULT_SIZES;
@@ -2098,21 +2127,105 @@ function quickProductChange(){
     return '<option value="'+esc(z)+'">'+esc(z)+'</option>'; }).join('');
   quickPrice();
 }
-/* Cheapest sensible match: the size price if there is one, else the usual. */
 function quickPrice(){
-  var name = $('qProduct').value, size = $('qSizing').value;
-  var p = DB.products.filter(function(x){ return x.name === name; })[0];
+  var p = productFor($('qProduct').value, $('qSchool').value, $('qDept').value);
   if(!p){ quickRecalc(); return; }
-  var hit = (p.sizes||[]).filter(function(z){ return z.size === size; })[0];
+  var hit = (p.sizes||[]).filter(function(z){ return z.size === $('qSizing').value; })[0];
   $('qPrice').value = num(hit ? hit.price : p.price).toFixed(2);
-  quickRecalc();
+  quickRecalc(true);
 }
-function quickRecalc(manual){
+
+/* ---------- several garments on one slip ---------- */
+function qCurrentLine(){
   var unit = num($('qPrice').value), n = parseInt($('qSet').value || 1, 10);
-  if(!$('qTotal').dataset.touched || manual) $('qTotal').value = (unit * n).toFixed(2);
+  return {
+    productName: $('qProduct').value, sizing: $('qSizing').value,
+    set: String(n), sellingPrice: unit, orderTotal: unit * n
+  };
+}
+function qLineEmpty(g){ return !g.productName && !g.orderTotal; }
+function qStagedTotal(){
+  return qLines.reduce(function(a,g){ return a + num(g.orderTotal); }, 0);
+}
+function qAddGarment(){
+  var g = qCurrentLine();
+  if(qLineEmpty(g)){ toast('Pick the garment first'); $('qProduct').focus(); return; }
+  if(!g.orderTotal){ toast('This garment needs a price'); $('qPrice').focus(); return; }
+  qLines.push(g);
+  $('qProduct').value = ''; $('qSizing').innerHTML = '<option value=""></option>';
+  $('qSet').value = '1'; $('qPrice').value = '';
+  qRenderLines();
+  quickRecalc(true);
+  toast('Added — ' + qLines.length + ' garment' + (qLines.length>1?'s':'') + ' so far');
+  $('qProduct').focus();
+}
+function qRemoveLine(i){
+  var g = qLines[i];
+  if(!confirm('Take ' + (g.productName||'this garment') + ' at ' + peso(g.orderTotal) + ' off this slip?')) return;
+  qLines.splice(i,1);
+  qRenderLines(); quickRecalc(true);
+}
+function qRenderLines(){
+  if(!$('qLineList')) return;
+  if(!qLines.length){ $('qLineList').innerHTML = ''; return; }
+  $('qLineList').innerHTML = '<div class="ltot" style="margin-top:12px">' +
+    qLines.map(function(g,i){
+      var n = parseInt(g.set||1,10);
+      return '<div class="lrow"><div class="ltxt">'+
+        '<div class="lname">'+esc(g.productName)+(g.sizing?' ('+esc(g.sizing)+')':'')+'</div>'+
+        '<div class="lmeta">'+(n>1 ? n+' × '+pesoShort(g.sellingPrice) : 'single piece')+'</div></div>'+
+        '<span class="lamt">'+peso(g.orderTotal)+'</span>'+
+        '<button type="button" onclick="qRemoveLine('+i+')">×</button></div>';
+    }).join('') + '</div>';
+}
+
+/* ---------- the cashier's sums ----------
+   The order total comes from the garments. The cashier types what the customer
+   handed over; the change and any remaining balance follow from that, so there
+   is only ever one number to key in. */
+function quickRecalc(manual){
+  var cur = qCurrentLine();
+  var total = qStagedTotal() + (qLineEmpty(cur) ? 0 : num(cur.orderTotal));
+  if(!$('qTotal').dataset.touched || manual) $('qTotal').value = total.toFixed(2);
   quickBalance();
 }
-var quickMode = 'Cash', quickProof = null;
+function quickTotal(){ return num($('qTotal').value); }
+function quickPaid(){
+  var cash = num($('qCash').value), total = quickTotal();
+  return Math.min(cash, total);          // anything above the total is change
+}
+function quickChange(){
+  return Math.max(0, num($('qCash').value) - quickTotal());
+}
+function quickBalance(){
+  var total = quickTotal(), cash = num($('qCash').value);
+  var paid = quickPaid(), change = quickChange(), bal = total - paid;
+
+  var h = '<div class="kv"><span class="k">Order total</span><span class="v mono">'+peso(total)+'</span></div>';
+  if(cash > 0){
+    h += '<div class="kv"><span class="k">'+(quickMode==='Cash'?'Cash given':'Amount received')+'</span>'+
+         '<span class="v mono">'+peso(cash)+'</span></div>';
+  }
+  if(change > 0 && quickMode === 'Cash'){
+    h += '<div class="kv changerow"><span class="k">CHANGE TO GIVE</span>'+
+         '<span class="v mono">'+peso(change)+'</span></div>';
+  }
+  if(total > 0){
+    h += bal > 0
+      ? '<div class="kv"><span class="k">Still to pay</span>'+
+        '<span class="v mono" style="color:var(--bad)">'+peso(bal)+'</span></div>'
+      : '<div class="kv"><span class="k">Balance</span>'+
+        '<span class="v mono" style="color:var(--ok)">₱0.00 — fully paid</span></div>';
+  }
+  if($('qTotals')) $('qTotals').innerHTML = h;
+}
+function quickFullPayment(){
+  var total = quickTotal();
+  if(total <= 0){ toast('Add the garment first'); $('qProduct').focus(); return; }
+  $('qCash').value = total.toFixed(2);
+  quickBalance();
+  toast('Exact amount — ' + peso(total));
+}
 
 function setQuickMode(m){
   quickMode = m;
@@ -2120,9 +2233,9 @@ function setQuickMode(m){
     b.classList.toggle('on', b.dataset.mode === m);
   });
   $('qOtherWrap').style.display = (m === 'Other') ? '' : 'none';
-  $('qCashWrap').style.display  = (m === 'Cash')  ? '' : 'none';
   $('qProofWrap').style.display = (m === 'GCash') ? '' : 'none';
-  if(m !== 'Cash') $('qCash').value = '';
+  $('qCashLabel').textContent = (m === 'Cash')
+    ? 'Cash given by customer ₱' : 'Amount received ₱';
   if(m !== 'GCash'){ quickProof = null; renderProofBox(); }
   quickBalance();
 }
@@ -2140,8 +2253,6 @@ function renderProofBox(){
     : '<button type="button" class="btn btn-ghost btn-block btn-sm" onclick="$(\'qProofFile\').click()">Take photo of receipt</button>';
 }
 function clearProof(){ quickProof = null; renderProofBox(); }
-/* Proof photos are kept small: they are evidence a transfer happened, not
-   artwork, and the tablet only has a few megabytes of storage in total. */
 function handleProofPhoto(file){
   if(!file) return;
   shrinkImage(file, 620).then(function(img){
@@ -2151,40 +2262,38 @@ function handleProofPhoto(file){
   }).catch(function(){ toast('Could not read that photo'); });
 }
 
-function quickBalance(){
-  var total = num($('qTotal').value), paid = num($('qPaid').value);
-  var bal = total - paid, cash = num($('qCash').value), change = cash - paid;
-  var h = '<div class="kv"><span class="k">Balance on the order</span>'+
-          '<span class="v mono" style="color:'+(bal>0?'var(--bad)':'var(--ok)')+'">'+peso(bal)+'</span></div>';
-  if(quickMode === 'Cash' && cash > 0){
-    h += '<div class="kv changerow"><span class="k">Change to give</span>'+
-         '<span class="v mono" style="color:'+(change<0?'var(--bad)':'var(--ink)')+'">'+
-         (change < 0 ? 'short ' + peso(-change) : peso(change))+'</span></div>';
-  }
-  if($('qTotals')) $('qTotals').innerHTML = h;
+function quickHasWork(){
+  if(qLines.length) return true;
+  if($('qNum').value || $('qPhone').value) return true;
+  return !qLineEmpty(qCurrentLine());
 }
-function quickFullPayment(){
-  var total = num($('qTotal').value);
-  if(total <= 0){ toast('Set the price first'); $('qPrice').focus(); return; }
-  $('qPaid').value = total.toFixed(2);
-  quickBalance();
-  if(quickMode === 'Cash' && $('qCash')) $('qCash').focus();
-  toast('Paying in full — ' + peso(total));
+function clearQuick(){
+  if(quickHasWork() && !confirm('Clear this slip?\n\nAnything typed will be lost.')) return;
+  resetQuick();
+  toast('Cleared');
 }
 function resetQuick(){
-  ['qNum','qPhone','qPrice','qTotal','qPaid','qCash'].forEach(function(k){ if($(k)) $(k).value = ''; });
-  quickProof = null; renderProofBox(); setQuickMode('Cash');
+  ['qNum','qPhone','qPrice','qTotal','qCash'].forEach(function(k){
+    if($(k)){ $(k).value = ''; delete $(k).dataset.touched; }
+  });
   if($('qProduct')) $('qProduct').value = '';
   if($('qSizing')) $('qSizing').innerHTML = '<option value=""></option>';
   if($('qSet')) $('qSet').value = '1';
-  if($('qTotal')) delete $('qTotal').dataset.touched;
+  qLines = []; qRenderLines();
+  quickProof = null; renderProofBox(); setQuickMode('Cash');
   quickPreview(); quickBalance();
   if($('qNum')) $('qNum').focus();
 }
 
 function saveQuickOrder(){
   var paper = $('qNum').value.replace(/\D/g,'');
-  if(!paper){ toast('Type the number on the paper'); $('qNum').focus(); return; }
+  if(!paper){
+    toast('The paper number is required');
+    $('qNum').classList.add('missing');
+    $('qNum').focus();
+    setTimeout(function(){ $('qNum').classList.remove('missing'); }, 2200);
+    return;
+  }
   var id = quickOrderId(paper, quickDate());
 
   var clash = DB.orders.filter(function(o){ return o.orderId === id; })[0];
@@ -2193,66 +2302,90 @@ function saveQuickOrder(){
       '.\n\nSave another order with the same number?')) return;
 
   var phone = $('qPhone').value.trim();
-  if(!phone){ toast('Phone number is required'); $('qPhone').focus(); return; }
-  var product = $('qProduct').value;
-  if(!product){ toast('Pick the product'); $('qProduct').focus(); return; }
-  var total = num($('qTotal').value);
-  if(total <= 0){ toast('This order needs a price'); $('qPrice').focus(); return; }
+  if(!phone){
+    toast('The phone number is required');
+    $('qPhone').classList.add('missing');
+    $('qPhone').focus();
+    setTimeout(function(){ $('qPhone').classList.remove('missing'); }, 2200);
+    return;
+  }
 
-  var paid = num($('qPaid').value), now = stamp();
-  var mode = quickModeLabel();
-  var cash = num($('qCash').value), change = cash - paid;
+  var all = qLines.slice();
+  var cur = qCurrentLine();
+  if(!qLineEmpty(cur)) all.push(cur);
+  if(!all.length){ toast('Add at least one garment'); $('qProduct').focus(); return; }
+  if(all.some(function(g){ return !num(g.orderTotal); })){ toast('Every garment needs a price'); return; }
+
+  var total = quickTotal(), paid = quickPaid(), change = quickChange();
+  var cash = num($('qCash').value), mode = quickModeLabel(), now = stamp();
 
   if(paid > 0 && quickMode === 'GCash' && !quickProof){
     toast('Photograph the GCash receipt first');
     $('qProofFile').click();
     return;
   }
-  if(paid > 0 && quickMode === 'Cash' && cash > 0 && change < -0.004){
-    toast('Cash given is less than the amount being paid');
-    $('qCash').focus();
-    return;
+
+  var school = $('qSchool').value, dept = $('qDept').value;
+  var tid = 't' + Date.now() + Math.floor(Math.random()*1000);
+  var made = [];
+
+  all.forEach(function(g, idx){
+    var rec = {
+      id: 'o' + Date.now() + idx + Math.floor(Math.random()*1000),
+      orderId: all.length > 1 ? id + '-' + (idx+1) : id,
+      paperNo: parseInt(paper,10), slipDate: quickDate(),
+      ticketId: tid, lineNo: idx+1, lineCount: all.length,
+      quick: true, needsDetails: true,
+      lastName: '', firstName: '', phoneNumber: phone, emailAddress: '',
+      companySchool: school, department: dept, gender: '',
+      dateOrdered: quickDate(), dateDue: '', notes: '',
+      productName: g.productName, sizing: g.sizing, set: g.set,
+      sellingPrice: g.sellingPrice, orderTotal: g.orderTotal, meas: {},
+      block: '', page: '', number: String(parseInt(paper,10)), coder: currentUser(),
+      isReadyMade: false, completedStatus: '', completedTimestamp: '',
+      isReceived: false, receivedTimestamp: '',
+      amountPaid: 0, balance: num(g.orderTotal), paid: 'No',
+      payments: [], paymentMode: '', log: [], createdAt: now, updatedAt: now
+    };
+    DB.orders.push(rec);
+    made.push(rec);
+  });
+
+  if(paid > 0) allocatePayment(made, paid, mode, now);
+  if(quickMode === 'Cash' && cash > 0){
+    made[0].cashGiven = cash;
+    made[0].changeGiven = change;
   }
-  var rec = {
-    id: 'o' + Date.now() + Math.floor(Math.random()*1000),
-    orderId: id, paperNo: parseInt(paper,10), slipDate: quickDate(),
-    ticketId: 't' + Date.now() + Math.floor(Math.random()*1000), lineNo: 1, lineCount: 1,
-    quick: true, needsDetails: true,
-    lastName: '', firstName: '', phoneNumber: phone, emailAddress: '',
-    companySchool: '', department: '', gender: '',
-    dateOrdered: quickDate(), dateDue: '', notes: '',
-    productName: product, sizing: $('qSizing').value, set: $('qSet').value,
-    sellingPrice: num($('qPrice').value), orderTotal: total, meas: {},
-    block: '', page: '', number: String(parseInt(paper,10)), coder: currentUser(),
-    isReadyMade: false, completedStatus: '', completedTimestamp: '',
-    isReceived: false, receivedTimestamp: '',
-    amountPaid: 0, balance: total, paid: 'No',
-    payments: [], paymentMode: '', log: [], createdAt: now, updatedAt: now
-  };
-  if(quickMode === 'Cash' && cash > 0){ rec.cashGiven = cash; rec.changeGiven = change; }
-  DB.orders.push(rec);
-  if(paid > 0) allocatePayment([rec], paid, mode, now);
   if(quickProof){
     DB.proofs = DB.proofs || {};
-    DB.proofs[rec.id] = quickProof;      // kept out of the order so the sheet stays light
-    rec.hasProof = true;
+    DB.proofs[made[0].id] = quickProof;
+    made.forEach(function(r){ r.hasProof = true; });
   }
 
-  logEvent(rec, 'Quick entry from sizing slip ' + id +
-    ' — ' + product + (rec.sizing ? ' (' + rec.sizing + ')' : '') +
-    ', ' + peso(total) +
-    (paid > 0 ? ', ' + peso(paid) + ' paid by ' + mode +
-        (rec.cashGiven ? ' (cash ' + peso(rec.cashGiven) + ', change ' + peso(rec.changeGiven) + ')' : '') +
-        (quickProof ? ', proof photo attached' : '')
-      : ', nothing paid yet') +
-    '. Customer details still to be added.', true);
+  made.forEach(function(rec){
+    logEvent(rec, 'Quick entry from slip ' + id +
+      (made.length > 1 ? ' — garment ' + rec.lineNo + ' of ' + made.length : '') +
+      ' — ' + rec.productName + (rec.sizing ? ' (' + rec.sizing + ')' : '') +
+      ', order total ' + peso(total) +
+      (paid > 0 ? ', ' + peso(paid) + ' paid by ' + mode +
+          (change > 0 ? ' (cash ' + peso(cash) + ', change ' + peso(change) + ')' : '') +
+          (quickProof ? ', proof photo attached' : '')
+        : ', nothing paid yet') +
+      '. Customer details still to be added.', true);
+  });
 
-  save(); queueSync(); maybeAutoBackup(1);
+  DB.lastUsed = DB.lastUsed || {};
+  DB.lastUsed.companySchool = school;
+  DB.lastUsed.department = dept;
+
+  save(); queueSync(); maybeAutoBackup(made.length);
   updateQuickBadge();
-  toast(rec.changeGiven > 0
-    ? 'Saved ' + id + ' · change ' + peso(rec.changeGiven)
-    : 'Saved ' + id);
+  toast(change > 0 ? 'Saved ' + id + ' · change ' + peso(change) : 'Saved ' + id);
+
+  // the school and department stay for the next customer in the same queue
   resetQuick();
+  fillSelect('qSchool', DB.schools, school);
+  qSchoolChange(true);
 }
 
 /* ---------- the day book ----------
