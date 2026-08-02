@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- the cream from the top of the logo card, so the adaptive icon's
+         padding blends into the artwork instead of framing it -->
+    <color name="ic_launcher_background">#FAF3EC</color>
+</resources>
