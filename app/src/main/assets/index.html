@@ -2915,33 +2915,65 @@ function orderFromScan(text){
 /* ---------- printing QR labels ----------
    Full-detail label: the code plus name, order number, garments, due date and
    balance, so a slip stuck to the garment is readable without scanning too. */
+/* One label per garment, because that is what gets stuck to the garment. It
+   carries everything the workroom and the counter need without the tablet:
+   who it belongs to, what it is, the full tape, when it is due and what is
+   still owed. The QR resolves to this one record. */
 function qrLabelHTML(o){
   var ls = ticketLines(o.ticketId);
-  if(!ls.length) ls = [o];
-  var tt = { total: ls.reduce(function(a,x){ return a+num(x.orderTotal); },0),
-             paid:  ls.reduce(function(a,x){ return a+num(x.amountPaid); },0),
-             balance: ls.reduce(function(a,x){ return a+num(x.balance); },0) };
-  var garments = ls.map(function(x){
-    var n = parseInt(x.set||1,10);
-    return '<div class="ql-g">' + esc(x.orderId) + ' · ' + esc(x.productName || 'Garment') +
-           (x.sizing ? ' (' + esc(x.sizing) + ')' : '') + (n>1 ? ' ×'+n : '') + '</div>';
-  }).join('');
+  var partOf = (o.lineCount > 1)
+    ? '<span class="ql-part">' + o.lineNo + ' of ' + o.lineCount + '</span>' : '';
+  var tt = ticketTotals(o.ticketId);
+  var bal = (o.lineCount > 1) ? tt.balance : num(o.balance);
+  var n = parseInt(o.set || 1, 10);
+
+  var tape = MEAS.filter(function(m){ return o.meas && o.meas[m.k]; })
+    .map(function(m){
+      return '<span class="ql-m"><b>' + m.label + '</b> ' + esc(o.meas[m.k]) + '</span>';
+    }).join('');
+
   return '<div class="qlabel">' +
     '<img class="ql-qr" src="' + orderQRUrl(o, 6) + '" alt="QR">' +
     '<div class="ql-body">' +
-      '<div class="ql-shop">BELLE\'S DRESS SHOP</div>' +
-      '<div class="ql-name">' + esc(o.lastName) + ', ' + esc(o.firstName) + '</div>' +
-      '<div class="ql-meta">' + esc(o.phoneNumber||'') + (o.companySchool ? ' · ' + esc(o.companySchool) : '') + '</div>' +
-      garments +
-      '<div class="ql-line"><span>Due ' + nice(o.dateDue) + '</span>' +
-        '<span>Total ' + peso(tt.total) + '</span></div>' +
-      '<div class="ql-line ql-bal"><span>Balance</span><span>' + peso(tt.balance) +
-        (tt.balance<=0 ? ' — paid' : '') + '</span></div>' +
+      '<div class="ql-top"><span class="ql-shop">BELLE\'S DRESS SHOP</span>' + partOf + '</div>' +
+      '<div class="ql-no">' + esc(o.orderId) + '</div>' +
+      '<div class="ql-name">' + esc(o.lastName ? o.lastName + ', ' + o.firstName : 'NAME MISSING') + '</div>' +
+      '<div class="ql-meta">' + esc(o.phoneNumber || '') +
+        (o.companySchool ? ' · ' + esc(o.companySchool) : '') +
+        (o.department ? ' · ' + esc(o.department) : '') + '</div>' +
+      '<div class="ql-item">' + esc(o.productName || 'Garment') +
+        (o.sizing ? ' (' + esc(o.sizing) + ')' : '') +
+        (n > 1 ? ' — ' + n + ' pieces' : '') + '</div>' +
+      (tape ? '<div class="ql-tape">' + tape + '</div>'
+            : '<div class="ql-tape none">no measurements recorded</div>') +
+      (o.notes ? '<div class="ql-note">' + esc(o.notes) + '</div>' : '') +
+      '<div class="ql-foot">' +
+        '<span>' + (o.dateDue ? 'Due ' + nice(o.dateDue) : 'No due date') + '</span>' +
+        '<span>' + (bal > 0 ? 'Balance ' + peso(bal) : 'Paid in full') +
+          (o.lineCount > 1 && bal > 0 ? ' (whole order)' : '') + '</span>' +
+      '</div>' +
     '</div></div>';
 }
+
+/* A label is a promise to the workroom, so it is refused while the order is
+   still a bare slip — an unnamed garment with no measurements cannot be cut. */
+function labelBlockedReason(o){
+  if(o.needsDetails || !o.lastName) return 'this order still needs the customer details';
+  if(!MEAS.some(function(m){ return o.meas && o.meas[m.k]; })) return 'this order has no measurements yet';
+  return '';
+}
 function printQRLabel(id){
-  var o = DB.orders.filter(function(x){ return x.id===id; })[0];
+  var o = DB.orders.filter(function(x){ return x.id === id; })[0];
   if(!o) return;
+  var why = labelBlockedReason(o);
+  if(why){
+    toast('Cannot print a label — ' + why);
+    if(confirm('Cannot print a label yet:\n\n' + why.charAt(0).toUpperCase() + why.slice(1) +
+               '.\n\nOpen it now to fill in the missing details?')){
+      editOrder(id);
+    }
+    return;
+  }
   setPrintStyle(DB.paper === 'A4' ? 'report' : 'label');
   var area = $('printArea');
   area.className = 'qlabels';
@@ -2949,16 +2981,45 @@ function printQRLabel(id){
   printNow();
   setTimeout(function(){ area.className = 'pos'; setPrintStyle('pos'); }, 800);
 }
-/* Print every not-yet-collected garment's label in one go, for a batch. */
+
+/* When one customer has several garments, each still needs its own label. */
+function printTicketLabels(id){
+  var o = DB.orders.filter(function(x){ return x.id === id; })[0];
+  if(!o) return;
+  var ls = ticketLines(o.ticketId);
+  if(!ls.length) ls = [o];
+  var ready = ls.filter(function(x){ return !labelBlockedReason(x); });
+  var blocked = ls.length - ready.length;
+  if(!ready.length){
+    toast('None of these garments are ready for a label');
+    return;
+  }
+  setPrintStyle(DB.paper === 'A4' ? 'report' : 'label');
+  var area = $('printArea');
+  area.className = 'qlabels';
+  area.innerHTML = ready.map(qrLabelHTML).join('');
+  printNow();
+  setTimeout(function(){ area.className = 'pos'; setPrintStyle('pos'); }, 800);
+  toast(blocked
+    ? 'Printing ' + ready.length + ' label(s) · ' + blocked + ' skipped, details missing'
+    : 'Printing ' + ready.length + ' label(s)');
+}
+
 function printAllPendingLabels(){
-  var pend = {};
+  var list = [], skipped = 0;
   DB.orders.forEach(function(o){
     if(o.isReceived) return;
     var done = parseInt(o.completedStatus||0,10), total = parseInt(o.set||1,10);
-    if(done >= total && total > 0) pend[o.ticketId || o.id] = o;   // one label per ticket
+    if(!(done >= total && total > 0)) return;
+    if(labelBlockedReason(o)){ skipped++; return; }
+    list.push(o);                                   // one label per garment
   });
-  var list = Object.keys(pend).map(function(k){ return pend[k]; });
-  if(!list.length){ toast('No finished, uncollected orders to label'); return; }
+  if(!list.length){
+    toast(skipped ? skipped + ' finished order(s) still need details before labelling'
+                  : 'No finished, uncollected orders to label');
+    return;
+  }
+  if(skipped) toast(skipped + ' skipped — details still missing');
   setPrintStyle(DB.paper === 'A4' ? 'report' : 'label');
   var area = $('printArea');
   area.className = 'qlabels';
@@ -4103,8 +4164,11 @@ function setPrintStyle(kind){
     var lw = parseInt(DB.paper || '58', 10);
     st.textContent = '@media print{@page{size:' + lw + 'mm auto;margin:2mm}' +
                      'body>.qlabels{width:' + (lw - 4) + 'mm}' +
-                     '.qlabel{border:none;padding:2px 0}' +
-                     '.qlabel .ql-qr{width:26mm;height:26mm}}';
+                     '.qlabel{border:none;padding:2px 0;display:block;page-break-after:always}' +
+                     '.qlabel:last-child{page-break-after:auto}' +
+                     '.qlabel .ql-qr{width:24mm;height:24mm;display:block;margin:0 auto 3px}' +
+                     '.qlabel .ql-name{font-size:13px}' +
+                     '.qlabel .ql-tape{font-size:11px;gap:2px 8px}}';
     return;
   }
   var mm = parseInt(DB.paper || '58', 10);
@@ -4289,9 +4353,16 @@ function openOrder(id){
     '<div class="qr-row">'+
       '<img class="qr-thumb" src="'+orderQRUrl(o, 5)+'" alt="Order QR">'+
       '<div class="qr-side">'+
-        '<p class="sub" style="margin:0 0 8px">Print this label and stick it on the finished garment. Scanning it at pick-up brings the order back up here.</p>'+
+        '<p class="sub" style="margin:0 0 8px">'+
+          (labelBlockedReason(o)
+            ? '<b style="color:var(--warn)">Not ready to label — '+esc(labelBlockedReason(o))+'.</b>'
+            : 'Stick this on the garment. Scanning it at pick-up brings the order straight back here.')+
+        '</p>'+
         '<div class="btn-row">'+
           '<button class="btn btn-ghost btn-sm" onclick="printQRLabel(\''+o.id+'\')">Print label</button>'+
+          (o.lineCount > 1
+            ? '<button class="btn btn-ghost btn-sm" onclick="printTicketLabels(\''+o.id+'\')">Labels for all '+o.lineCount+'</button>'
+            : '')+
           (!o.isReceived
             ? '<button class="btn btn-primary btn-sm" onclick="markDispatched(\''+o.id+'\')">Mark collected</button>'
             : '<span class="pill rcv">Collected '+(o.receivedTimestamp?nice(ymd(new Date(o.receivedTimestamp))):'')+'</span>')+
