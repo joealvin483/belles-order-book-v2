@@ -159,6 +159,34 @@ input:required:invalid:not(:placeholder-shown){border-color:#E7B7B2}
 .m input::placeholder{color:#DCC6CD;font-size:14px;letter-spacing:.02em}
 .m .hint{font-size:9.5px;color:#B9A6AC;letter-spacing:.02em}
 
+/* ---------- ask modal ----------
+   Replaces window.prompt/confirm. Android WebView hands those to the OS, which
+   draws its own grey box and often never gives the text field keyboard focus.
+   This is drawn by the page, so it looks the same everywhere and types. */
+.askwrap{
+  position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;
+  background:rgba(42,26,32,.42);padding:18px;padding-bottom:calc(18px + var(--kb));
+}
+.askwrap[hidden]{display:none}
+.askbox{
+  width:100%;max-width:420px;max-height:100%;overflow:auto;
+  background:var(--paper);border-radius:18px;box-shadow:0 10px 40px rgba(42,26,32,.28);
+  padding:20px;
+}
+.askbox h3{margin:0 0 6px;font-size:18px;font-weight:600;color:var(--ink);letter-spacing:-0.015em}
+.askbox .askbody{margin:0 0 14px;font-size:14.5px;line-height:1.5;color:var(--muted);white-space:pre-line}
+.askbox input{
+  width:100%;min-height:52px;padding:12px 14px;margin-bottom:14px;
+  border:1px solid var(--line);border-radius:12px;background:var(--canvas);
+  font-family:var(--sans);font-size:18px;color:var(--ink);
+  font-variant-numeric:tabular-nums;
+}
+.askbox input:focus{outline:none;border-color:var(--rose);background:#fff}
+.askchoice{display:flex;flex-direction:column;gap:9px;margin-bottom:14px}
+.askchoice .btn{width:100%;justify-content:flex-start;text-align:left}
+.askfoot{display:flex;gap:9px}
+.askfoot .btn{flex:1}
+
 /* ---------- buttons ---------- */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:7px;
@@ -329,6 +357,60 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
 .szadd input:first-child{flex:1;text-transform:uppercase}
 .szadd input:nth-child(2){width:104px;flex:none;font-family:var(--mono);text-align:right;text-transform:none}
 .szadd input{padding:8px 10px}
+/* ---------- end of day cash count ---------- */
+.coh .kv input{
+  width:118px;text-align:right;font-family:var(--posmono);font-size:14px;
+  padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:var(--paper);
+}
+.coh .kv.total{border-top:1px solid var(--ink);border-bottom:none;margin-top:3px;padding-top:9px}
+.coh .ded{display:flex;gap:7px;align-items:center;padding:5px 0;border-bottom:1px dotted var(--line)}
+.coh .ded .dname{flex:1;font-size:14px}
+.coh .ded .damt{font-family:var(--posmono);font-size:14px}
+.coh .ded button{
+  border:none;background:none;color:var(--bad);font-size:17px;line-height:1;
+  padding:0 3px;cursor:pointer;
+}
+.coh .dedadd{display:flex;gap:7px;margin-top:9px}
+.coh .dedadd input{
+  padding:7px 9px;border:1px solid var(--line);border-radius:8px;
+  background:var(--paper);font-size:14px;min-width:0;
+}
+.coh .dedadd input.dl{flex:1}
+.coh .dedadd input.da{width:96px;text-align:right;font-family:var(--posmono)}
+.coh .variance{
+  margin-top:11px;padding:11px 13px;border-radius:10px;text-align:center;
+  font-family:var(--posmono);font-size:15px;
+}
+.coh .variance.ok{background:rgba(93,138,110,.12);color:var(--ok)}
+.coh .variance.off{background:rgba(178,74,74,.10);color:var(--bad)}
+.coh .sealed{
+  margin-top:10px;padding:8px 11px;border-radius:8px;background:var(--wash);
+  font-size:12.5px;color:var(--ink-soft);text-align:center;
+}
+/* ---------- order saved confirmation ---------- */
+.saved{
+  position:fixed;inset:0;z-index:210;background:rgba(42,26,32,.42);
+  display:none;align-items:center;justify-content:center;padding:22px;
+}
+.saved.on{display:flex}
+.savedbox{
+  width:100%;max-width:360px;background:var(--paper);border-radius:16px;
+  padding:26px 22px 20px;text-align:center;box-shadow:0 18px 44px rgba(42,26,32,.22);
+}
+.savedtick{
+  width:52px;height:52px;margin:0 auto 14px;border-radius:50%;
+  background:var(--ok);color:#fff;font-size:27px;line-height:52px;font-weight:700;
+}
+.savedbox h4{font-family:var(--serif);font-size:20px;margin:0 0 3px}
+.savedbox .savedno{
+  font-family:var(--posmono);font-size:13px;letter-spacing:.08em;
+  color:var(--rose-deep);margin:0 0 15px;
+}
+.savedlines{text-align:left;margin-bottom:19px}
+.savedlines .kv{border-bottom:1px dotted var(--line);padding:7px 0}
+.savedlines .kv:last-child{border-bottom:none;padding-top:9px}
+.savedbtns{display:flex;flex-direction:column;gap:9px}
+.savedbtns .btn{width:100%}
 /* ---------- login gate ---------- */
 .gate{
   position:fixed;inset:0;z-index:200;background:var(--canvas);
@@ -553,7 +635,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
 /* ---------- POS printing ----------
    Prints a narrow thermal-style slip, not the screen. Everything else on the
    page is hidden and only #printArea goes to the printer. */
-.pos{display:none}
+.pos,.qlabels,.report{display:none}
 @media print{
   html,body{background:#fff!important;margin:0!important;padding:0!important}
   body>*{display:none!important}
@@ -620,6 +702,18 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
 </head>
 <body>
 
+<div class="saved" id="savedSheet">
+  <div class="savedbox">
+    <div class="savedtick">&#10003;</div>
+    <h4 id="savedTitle">Order saved</h4>
+    <p class="savedno" id="savedNo"></p>
+    <div class="savedlines" id="savedLines"></div>
+    <div class="savedbtns">
+      <button type="button" class="btn btn-primary" onclick="savedNewOrder()">New order</button>
+      <button type="button" class="btn btn-ghost" onclick="savedViewOrder()">View this order</button>
+    </div>
+  </div>
+</div>
 <div class="gate" id="gate"><div class="gatebox">
   <div class="gatemark">Belle's Dress Shop<span>order book</span></div>
   <div id="gateBody"></div>
@@ -700,6 +794,16 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
             <p class="sub" id="sizeHint" style="margin:4px 0 0;display:none"></p></div>
           <div class="field"><label for="set">Pieces in set</label>
             <select id="set"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></div>
+        </div>
+        <div class="check" id="bigSizeWrap" style="display:none">
+          <input type="checkbox" id="isBigSize"><label for="isBigSize">Bigger size (+&#8369;100)</label>
+        </div>
+        <div class="check" id="splitWrap" style="display:none">
+          <input type="checkbox" id="isSplitSize"><label for="isSplitSize">Upper and lower are different sizes</label>
+        </div>
+        <div class="row c2" id="splitRow" style="display:none">
+          <div class="field"><label for="sizeUpper">Upper size</label><select id="sizeUpper"></select></div>
+          <div class="field"><label for="sizeLower">Lower size</label><select id="sizeLower"></select></div>
         </div>
         <div class="row c4">
           <div class="field"><label for="block">Block</label><input type="text" id="block" inputmode="numeric"></div>
@@ -887,8 +991,8 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
         <div class="field"><label for="qDate">Slip date</label>
           <input type="date" id="qDate" onchange="quickPreview()"></div>
       </div>
-      <div class="field"><label for="qPhone">Phone <span class="req">required</span></label>
-        <input type="tel" id="qPhone" inputmode="numeric" maxlength="13" placeholder="09XXXXXXXXX" autocomplete="off" required></div>
+      <div class="field"><label for="qPhone">Phone <span class="sub">optional</span></label>
+        <input type="tel" id="qPhone" inputmode="numeric" maxlength="13" placeholder="09XXXXXXXXX" autocomplete="off"></div>
       <div class="row c2">
         <div class="field"><label for="qSchool">School / company</label>
           <select id="qSchool" onchange="qSchoolChange()"></select></div>
@@ -905,6 +1009,20 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
       <p class="sub" id="qProdHint"></p>
       <div class="field"><label for="qProduct">Product</label>
         <select id="qProduct" onchange="quickProductChange()"></select></div>
+      <div class="check" id="qBigWrap" style="display:none">
+        <input type="checkbox" id="qBigSize" onchange="quickPrice()">
+        <label for="qBigSize">Bigger size (+&#8369;100)</label>
+      </div>
+      <div class="check" id="qSplitWrap" style="display:none">
+        <input type="checkbox" id="qSplitSize" onchange="quickToggleSplit()">
+        <label for="qSplitSize">Upper and lower are different sizes</label>
+      </div>
+      <div class="row c2" id="qSplitRow" style="display:none">
+        <div class="field"><label for="qSizeUpper">Upper size</label>
+          <select id="qSizeUpper" onchange="quickPrice()"></select></div>
+        <div class="field"><label for="qSizeLower">Lower size</label>
+          <select id="qSizeLower" onchange="quickPrice()"></select></div>
+      </div>
       <div class="row c3">
         <div class="field"><label for="qSizing">Sizing</label>
           <select id="qSizing" onchange="quickPrice()"></select></div>
@@ -1243,6 +1361,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="askwrap" id="askWrap" hidden><div class="askbox" id="askBox"></div></div>
 <div class="pos" id="printArea"></div>
 
 <script>/* QR Code Generator — Kazuhiko Arase, MIT */
@@ -1265,7 +1384,7 @@ var MEAS = [
   {k:'n',   label:'N',  hint:'neck',        seg:1},
   {k:'s',   label:'S',  hint:'shoulder',    seg:1},
   {k:'b',   label:'B',  hint:'bust',        seg:2},
-  {k:'f',   label:'F',  hint:'front',       seg:2},
+  {k:'f',   label:'F',  hint:'front',       seg:3},
   {k:'ah',  label:'AH', hint:'armhole',     seg:3},
   {k:'fb',  label:'FB', hint:'full back',   seg:2},
   {k:'w',   label:'W',  hint:'waist',       seg:1},
@@ -1273,9 +1392,9 @@ var MEAS = [
   {k:'c',   label:'C',  hint:'crotch',      seg:1},
   {k:'fl',  label:'FL', hint:'full length', seg:2},
   {k:'l',   label:'L',  hint:'length',      seg:2},
-  {k:'k',   label:'K',  hint:'knee',        seg:2},
+  {k:'k',   label:'K',  hint:'knee',        seg:1},
   {k:'an',  label:'An', hint:'ankle',       seg:1},
-  {k:'wr',  label:'Wr', hint:'wrist',       seg:1}
+  {k:'wr',  label:'Wr', hint:'wrist',       seg:2}
 ];
 
 var KEY = 'belles_order_book_v1';
@@ -1284,7 +1403,10 @@ var DB = {
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
   lastAutoBackupDay: null, paper: '58',
   users: [], lastUser: null, quickPrefix: 'ORD',
-  sync: {url:'', secret:'', auto:true, pull:false, lastAt:null, lastPullAt:null, lastMsg:''}
+  sync: {url:'', secret:'', auto:true, pull:false, lastAt:null, lastPullAt:null, lastMsg:''},
+  cashups: {},         // one cash count per day, keyed yyyy-mm-dd
+  listMeta: {},        // when each list entry last changed, for merging
+  listGone: {}         // entries deliberately removed, so they stay removed
 };
 var storageOK = true;
 
@@ -1343,7 +1465,137 @@ function markSaved(state){
   var n = new Date();
   txt.textContent = 'Saved ' + String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
 }
+/* ---------- keeping the lists in step across tablets ----------
+   Rather than stamping a date inside every add, rename and delete scattered
+   through the app, the lists are compared against how they looked at the last
+   save. Anything new or altered is stamped now; anything that has gone is
+   remembered as deliberately removed, so another tablet cannot quietly put it
+   back. That way any future list change is covered without hunting for it. */
+var LIST_KINDS = ['schools','departments','products','addons'];
+function listKey(kind, item){
+  if(kind === 'schools') return String(item||'').toUpperCase();
+  return String((item && item.name) || '').toUpperCase();
+}
+function listFingerprint(kind, item){
+  if(kind === 'schools') return listKey(kind, item);
+  if(kind === 'products'){
+    return [item.name, item.school, item.department, num(item.price),
+            num(item.bigger), item.split ? 1 : 0,
+            (item.sizes||[]).map(function(z){ return z.size + ':' + num(z.price); }).sort().join(',')
+           ].join('|');
+  }
+  if(kind === 'addons') return [item.name, num(item.price), item.product||''].join('|');
+  return [item.name, item.school||''].join('|');
+}
+function listSnapshot(){
+  var snap = {};
+  LIST_KINDS.forEach(function(kind){
+    snap[kind] = {};
+    (DB[kind]||[]).forEach(function(item){
+      snap[kind][listKey(kind, item)] = listFingerprint(kind, item);
+    });
+  });
+  return snap;
+}
+var lastListSnapshot = null;
+function stampListChanges(){
+  if(!DB.listMeta) DB.listMeta = {};
+  if(!DB.listGone) DB.listGone = {};
+  var now = stamp();
+  var current = listSnapshot();
+  if(!lastListSnapshot){ lastListSnapshot = current; return; }
+  LIST_KINDS.forEach(function(kind){
+    DB.listMeta[kind] = DB.listMeta[kind] || {};
+    DB.listGone[kind] = DB.listGone[kind] || {};
+    var was = lastListSnapshot[kind] || {}, is = current[kind] || {};
+    Object.keys(is).forEach(function(k){
+      if(was[k] !== is[k]){                 // added, or edited
+        DB.listMeta[kind][k] = now;
+        delete DB.listGone[kind][k];        // brought back on purpose
+      }
+    });
+    Object.keys(was).forEach(function(k){
+      if(!(k in is)){                       // taken off the list on purpose
+        DB.listGone[kind][k] = now;
+        delete DB.listMeta[kind][k];
+      }
+    });
+  });
+  lastListSnapshot = current;
+}
+/* Everything the other tablets need to reproduce these lists. */
+function listBundle(){
+  stampListChanges();
+  return {
+    schools: DB.schools || [], departments: DB.departments || [],
+    products: DB.products || [], addons: DB.addons || [],
+    meta: DB.listMeta || {}, gone: DB.listGone || {}
+  };
+}
+/* Entry by entry, the more recent change wins. A removal counts as a change,
+   so a product deleted here does not come back from a tablet that still has
+   it — unless that tablet edited it more recently than the deletion. */
+function mergeLists(remote){
+  if(!remote) return {added:0, updated:0, removed:0};
+  var stats = {added:0, updated:0, removed:0};
+  var rMeta = remote.meta || {}, rGone = remote.gone || {};
+  if(!DB.listMeta) DB.listMeta = {};
+  if(!DB.listGone) DB.listGone = {};
+
+  LIST_KINDS.forEach(function(kind){
+    var mine = DB[kind] || [], theirs = remote[kind] || [];
+    DB.listMeta[kind] = DB.listMeta[kind] || {};
+    DB.listGone[kind] = DB.listGone[kind] || {};
+    var myMeta = DB.listMeta[kind], myGone = DB.listGone[kind];
+    var theirMeta = rMeta[kind] || {}, theirGone = rGone[kind] || {};
+
+    var index = {};
+    mine.forEach(function(item, i){ index[listKey(kind, item)] = i; });
+
+    // things they have
+    theirs.forEach(function(item){
+      var k = listKey(kind, item);
+      if(!k) return;
+      var theirAt = theirMeta[k] || '';
+      var goneAt = myGone[k] || '';
+      if(goneAt && goneAt >= theirAt) return;        // removed here, more recently
+      if(index[k] === undefined){
+        mine.push(item); index[k] = mine.length - 1;
+        myMeta[k] = theirAt || stamp(); delete myGone[k];
+        stats.added++;
+      }else{
+        var mineAt = myMeta[k] || '';
+        if(theirAt && theirAt > mineAt){
+          if(kind === 'schools') mine[index[k]] = item;
+          else mine[index[k]] = item;
+          myMeta[k] = theirAt;
+          stats.updated++;
+        }
+      }
+    });
+
+    // things they deliberately removed
+    Object.keys(theirGone).forEach(function(k){
+      var theirAt = theirGone[k], mineAt = myMeta[k] || '';
+      if(index[k] !== undefined && theirAt > mineAt){
+        mine.splice(index[k], 1);
+        index = {};
+        mine.forEach(function(item, i){ index[listKey(kind, item)] = i; });
+        delete myMeta[k];
+        myGone[k] = theirAt;
+        stats.removed++;
+      }else if(index[k] === undefined && !myGone[k]){
+        myGone[k] = theirAt;
+      }
+    });
+
+    DB[kind] = mine;
+  });
+  lastListSnapshot = listSnapshot();
+  return stats;
+}
 function save(){
+  stampListChanges();
   if(!storageOK){ markSaved('failed'); return false; }
   markSaved('writing');
   try{
@@ -1431,12 +1683,16 @@ function toast(msg){
 function daysBetween(a,b){ return Math.round((a-b)/86400000); }
 
 /* ---------- navigation ---------- */
-function requireAdmin(){
+var ADMIN_OK = false;
+function requireAdmin(then){
   if(session && session.role === 'owner') return true;
-  return askPassword('Setup is for the owner only.');
+  if(ADMIN_OK) return true;
+  askPassword('Setup is for the owner only.', then);
+  return false;
 }
 function go(v){
-  if(v === 'data' && !requireAdmin()) return;
+  if(v === 'data' && !requireAdmin(function(){ ADMIN_OK = true; go('data'); })) return;
+  if(v === 'data') ADMIN_OK = false;
   if(v !== 'find' && v !== 'new') detailOpen = false;
   if(typeof stopScanner === 'function' && v !== 'scan') stopScanner();
   var views=['new','quick','find','due','sum','report','lists','data','scan'];
@@ -1499,7 +1755,7 @@ function formatMeasure(v, seg){
 
 function buildTape(){
   $('tapeGrid').innerHTML = MEAS.map(function(m){
-    var ph = m.seg === 3 ? '0-00-00' : (m.seg === 2 ? '00-00' : '');
+    var ph = m.seg === 3 ? 'xx-xx-xx' : (m.seg === 2 ? 'xx-xx' : 'xx');
     return '<div class="m"><label for="m_'+m.k+'">'+m.label+'</label>'+
            '<input type="text" id="m_'+m.k+'" inputmode="decimal" placeholder="'+ph+'">'+
            '<div class="hint">'+m.hint+'</div></div>';
@@ -1687,16 +1943,105 @@ function fillSizes(keep, allowUnknown){
 function showSizeHint(){
   var p = productByName($('productName').value), h = $('sizeHint');
   if(!p){ h.style.display='none'; return; }
+  var r = ruleFor($('productName').value);
+  var extra = (r && r.bigger && $('isBigSize') && $('isBigSize').checked)
+    ? ' Plus ' + peso(r.bigger) + ' for the bigger size.' : '';
+  if(splitIsOn()){
+    var gv = governingSize();
+    h.style.display = '';
+    h.textContent = gv
+      ? 'Charged on the bigger of the two — ' + gv + ' at ' + peso(garmentBasePrice()) + '.' + extra
+      : 'Pick the upper and lower sizes; the dearer one sets the price.';
+    return;
+  }
   var size = $('sizing').value, e = sizePriceEntry(p, size);
   h.style.display = '';
   h.textContent = e
     ? size + ' is priced at ' + peso(e.price) + ' — usual price is ' + peso(p.price) + '.'
     : (size ? 'Usual price ' + peso(p.price) + ' applies to ' + size + '.'
             : 'Usual price ' + peso(p.price) + (p.sizes && p.sizes.length ? ' · ' + p.sizes.length + ' size price' + (p.sizes.length>1?'s':'') + ' set' : ''));
+  h.textContent += extra;
+}
+/* ---------- house pricing rules ----------
+   Kept out of DB.products on purpose: the rule follows the product name, so it
+   still applies if someone re-adds or re-prices the product under Lists.
+     bigger : peso surcharge when the "bigger size" box is ticked
+     split  : garment has an upper and a lower piece that may differ in size,
+              and is charged on whichever of the two costs more            */
+function ruleFor(name){
+  var p = productByName(name);
+  if(!p) return null;
+  var r = {};
+  if(num(p.bigger) > 0) r.bigger = num(p.bigger);
+  if(p.split) r.split = true;
+  return (r.bigger || r.split) ? r : null;
+}
+function splitIsOn(){
+  var r = ruleFor($('productName').value);
+  return !!(r && r.split && $('isSplitSize') && $('isSplitSize').checked);
+}
+/* Shows or hides the surcharge box and the upper/lower selects to suit the
+   chosen product, then keeps the price in step. */
+function syncGarmentOptions(quiet){
+  var r = ruleFor($('productName').value);
+  var big = !!(r && r.bigger), split = !!(r && r.split);
+  if($('bigSizeWrap')){
+    $('bigSizeWrap').style.display = big ? '' : 'none';
+    if(!big) $('isBigSize').checked = false;
+    if(big) $('bigSizeWrap').querySelector('label').textContent =
+      'Bigger size (+' + peso(r.bigger) + ')';
+  }
+  if($('splitWrap')){
+    $('splitWrap').style.display = split ? '' : 'none';
+    if(!split) $('isSplitSize').checked = false;
+  }
+  toggleSplitSize(true);
+  if(!quiet) applyCatalogPrice();
+}
+function toggleSplitSize(quiet){
+  var on = splitIsOn();
+  if($('splitRow')) $('splitRow').style.display = on ? '' : 'none';
+  var sz = $('sizing') ? $('sizing').closest('.field') : null;
+  if(sz) sz.style.display = on ? 'none' : '';
+  if(on) fillSplitSizes();
+  if(!quiet) applyCatalogPrice();
+}
+function fillSplitSizes(keepU, keepL){
+  var list = sizesFor($('productName').value);
+  var opts = '<option value=""></option>' + list.map(function(z){
+    return '<option value="'+esc(z)+'">'+esc(z)+'</option>'; }).join('');
+  var u = keepU!=null ? keepU : $('sizeUpper').value;
+  var l = keepL!=null ? keepL : $('sizeLower').value;
+  $('sizeUpper').innerHTML = opts; $('sizeLower').innerHTML = opts;
+  $('sizeUpper').value = u || ''; $('sizeLower').value = l || '';
+}
+/* Of an upper/lower pair, the one the garment is charged on. */
+function governingSize(){
+  var name = $('productName').value;
+  var u = $('sizeUpper').value, l = $('sizeLower').value;
+  if(!u) return l; if(!l) return u;
+  return (num(priceFor(name,l)) > num(priceFor(name,u))) ? l : u;
+}
+function splitLabel(g){
+  var u = g.sizeUpper || '', l = g.sizeLower || '';
+  return (u || l) ? ('upper ' + (u||'—') + ' · lower ' + (l||'—')) : '';
+}
+/* One place that works out what a garment costs before add-ons. */
+function garmentBasePrice(){
+  var name = $('productName').value, r = ruleFor(name), v;
+  if(splitIsOn()){
+    var g = governingSize();
+    v = g ? priceFor(name, g) : priceFor(name, '');
+  }else{
+    v = priceFor(name, $('sizing').value);
+  }
+  if(v === null) return null;
+  if(r && r.bigger && $('isBigSize') && $('isBigSize').checked) v = num(v) + r.bigger;
+  return v;
 }
 /* Pulls the catalogue price into the form. */
 function applyCatalogPrice(){
-  var v = priceFor($('productName').value, $('sizing').value);
+  var v = garmentBasePrice();
   if(v !== null && v > 0){
     // the extras are charged per piece, so they belong in the unit price
     $('sellingPrice').value = (v + addonTotal($('productName').value, pickedAddons)).toFixed(2);
@@ -1809,11 +2154,13 @@ function tryUnlock(name){
   hideGate(); afterUnlock();
 }
 function forgotPin(name){
-  if(!askPassword('Unlock as ' + name + ' without the PIN?')) return;
-  var u = (DB.users||[]).filter(function(x){ return x.name === name; })[0];
-  session = {name:u.name, role:u.role};
-  hideGate(); afterUnlock();
-  toast('Unlocked with the shop password — set a new PIN in Setup');
+  askPassword('Unlock as ' + name + ' without the PIN?', function(){
+    var u = (DB.users||[]).filter(function(x){ return x.name === name; })[0];
+    if(!u) return;
+    session = {name:u.name, role:u.role};
+    hideGate(); afterUnlock();
+    toast('Unlocked with the shop password — set a new PIN in Setup');
+  });
 }
 function lockApp(){
   session = null;
@@ -1871,20 +2218,25 @@ function addUser(){
 }
 function removeUser(i){
   var u = DB.users[i];
-  if(!askPassword('Remove the account for ' + u.name + '?')) return;
-  DB.users.splice(i,1); save(); renderUsers(); toast('Removed ' + u.name);
+  askPassword('Remove the account for ' + u.name + '?', function(){
+    DB.users.splice(i,1); save(); renderUsers(); toast('Removed ' + u.name);
+  });
 }
 function changeMyPin(){
   var u = (DB.users||[]).filter(function(x){ return x.name === currentUser(); })[0];
   if(!u){ toast('No account is signed in'); return; }
-  var old = prompt('Enter your current PIN.');
-  if(old === null) return;
-  if(pinHash(old, u.salt) !== u.hash){ toast('That is not your current PIN'); return; }
-  var pin = prompt('New PIN (4 to 8 digits).');
-  if(pin === null) return;
-  if(!/^\d{4,8}$/.test(pin)){ toast('PIN must be 4 to 8 digits'); return; }
-  u.salt = newSalt(); u.hash = pinHash(pin, u.salt);
-  save(); toast('PIN changed');
+  ask({ title:'Change your PIN', body:'Enter your current PIN.',
+        kind:'text', inputmode:'numeric' }, function(old){
+    if(old === null) return;
+    if(pinHash(old, u.salt) !== u.hash){ toast('That is not your current PIN'); return; }
+    ask({ title:'New PIN', body:'4 to 8 digits.',
+          kind:'text', inputmode:'numeric' }, function(pin){
+      if(pin === null) return;
+      if(!/^\d{4,8}$/.test(pin)){ toast('PIN must be 4 to 8 digits'); return; }
+      u.salt = newSalt(); u.hash = pinHash(pin, u.salt);
+      save(); toast('PIN changed');
+    });
+  });
 }
 
 /* ---------- multi-garment orders ----------
@@ -1896,7 +2248,10 @@ var lines = [];   // garments staged for the order being keyed in
 function readGarment(){
   var g = {
     productName: $('productName').value,
-    sizing: $('sizing').value,
+    sizing: splitIsOn() ? governingSize() : $('sizing').value,
+    sizeUpper: splitIsOn() ? $('sizeUpper').value : '',
+    sizeLower: splitIsOn() ? $('sizeLower').value : '',
+    bigSize: !!($('isBigSize') && $('isBigSize').checked && ruleFor($('productName').value)),
     set: $('set').value,
     sellingPrice: num($('sellingPrice').value),
     orderTotal: pieces() > 1 ? num($('orderTotal').value) : num($('sellingPrice').value),
@@ -1920,6 +2275,10 @@ function clearGarmentFields(){
   refreshAddonButtons();
   $('productName').value = '';
   $('sizing').value = '';
+  if($('isBigSize')) $('isBigSize').checked = false;
+  if($('isSplitSize')) $('isSplitSize').checked = false;
+  if($('sizeUpper')) $('sizeUpper').value = '';
+  if($('sizeLower')) $('sizeLower').value = '';
   $('set').value = '1';
   $('sellingPrice').value = '';
   $('orderTotal').value = '';
@@ -1929,6 +2288,7 @@ function clearGarmentFields(){
   totalDirty = false;
   refreshProductChoices('');
   fillSizes('');
+  syncGarmentOptions(true);
   syncCompleted('');
   recalc();
 }
@@ -1967,7 +2327,9 @@ function renderLines(){
       var n = parseInt(g.set||1,10);
       return '<div class="lrow"><div class="ltxt">'+
         '<div class="lname">'+esc(g.productName||'Garment')+(g.sizing?' ('+esc(g.sizing)+')':'')+'</div>'+
-        '<div class="lmeta">'+(n>1 ? n+' pcs × '+pesoShort(g.sellingPrice) : 'single piece')+'</div>'+
+        '<div class="lmeta">'+(n>1 ? n+' pcs × '+pesoShort(g.sellingPrice) : 'single piece')+
+          (splitLabel(g) ? ' · '+esc(splitLabel(g)) : '')+
+          (g.bigSize ? ' · bigger size' : '')+'</div>'+
         '</div><span class="lamt">'+peso(g.orderTotal)+'</span>'+
         '<button type="button" title="Remove" onclick="removeLine('+i+')">×</button></div>';
     }).join('');
@@ -2108,14 +2470,29 @@ function quickOrderId(paperNo, dateStr){
 function quickDate(){
   return ($('qDate') && $('qDate').value) ? $('qDate').value : ymd(today());
 }
+/* A paper number belongs to one slip. A cancelled slip releases its number,
+   since the paper itself is out of use — anything else is a duplicate and is
+   refused outright rather than merely queried. */
+function orderIdClash(id, ignoreId){
+  if(!id) return null;
+  return DB.orders.filter(function(o){
+    return o.orderId === id && !o.voided && o.id !== ignoreId;
+  })[0] || null;
+}
+function clashWho(o){
+  if(!o) return '';
+  var who = o.lastName ? (o.lastName + (o.firstName ? ', ' + o.firstName : '')) : '';
+  if(!who) who = o.productName || 'an unnamed customer';
+  return who;
+}
 function quickPreview(){
   var id = quickOrderId($('qNum').value, quickDate());
   var box = $('qIdPreview');
   box.textContent = id || 'Type the paper number';
   box.classList.toggle('dim', !id);
-  var clash = id && DB.orders.filter(function(o){ return o.orderId === id; })[0];
+  var clash = orderIdClash(id);
   box.classList.toggle('clash', !!clash);
-  if(clash) box.textContent = id + '  ·  already used';
+  if(clash) box.textContent = id + '  ·  already used by ' + clashWho(clash);
 }
 
 var quickMode = 'Cash', quickProof = null, qLines = [];
@@ -2166,19 +2543,72 @@ function fillQuickProducts(){
 function quickProductChange(){
   qPickedAddons = [];
   refreshQAddonButtons();
+  if($('qBigSize'))   $('qBigSize').checked = false;
+  if($('qSplitSize')) $('qSplitSize').checked = false;
+  if($('qSizeUpper')) $('qSizeUpper').value = '';
+  if($('qSizeLower')) $('qSizeLower').value = '';
   var p = productFor($('qProduct').value, $('qSchool').value, $('qDept').value);
   var sizes = (p && p.sizes && p.sizes.length)
     ? p.sizes.map(function(z){ return z.size; })
     : DEFAULT_SIZES;
   $('qSizing').innerHTML = '<option value=""></option>' + sizes.map(function(z){
     return '<option value="'+esc(z)+'">'+esc(z)+'</option>'; }).join('');
+  quickSyncOptions(true);
   quickPrice();
 }
+/* The quick screen follows the same product rules as the full order form. */
+function qProduct(){ return productFor($('qProduct').value, $('qSchool').value, $('qDept').value); }
+function qRule(){
+  var p = qProduct(); if(!p) return null;
+  var r = {};
+  if(num(p.bigger) > 0) r.bigger = num(p.bigger);
+  if(p.split) r.split = true;
+  return (r.bigger || r.split) ? r : null;
+}
+function qSplitOn(){
+  var r = qRule();
+  return !!(r && r.split && $('qSplitSize') && $('qSplitSize').checked);
+}
+function quickSyncOptions(quiet){
+  if(!$('qSplitWrap')) return;
+  var r = qRule(), big = !!(r && r.bigger), split = !!(r && r.split);
+  $('qBigWrap').style.display = big ? '' : 'none';
+  if(!big) $('qBigSize').checked = false;
+  else $('qBigWrap').querySelector('label').textContent = 'Bigger size (+' + peso(r.bigger) + ')';
+  $('qSplitWrap').style.display = split ? '' : 'none';
+  if(!split) $('qSplitSize').checked = false;
+  quickToggleSplit(true);
+  if(!quiet) quickPrice();
+}
+function quickToggleSplit(quiet){
+  var on = qSplitOn();
+  if($('qSplitRow')) $('qSplitRow').style.display = on ? '' : 'none';
+  var sz = $('qSizing') ? $('qSizing').closest('.field') : null;
+  if(sz) sz.style.display = on ? 'none' : '';
+  if(on){
+    var opts = $('qSizing').innerHTML;
+    var u = $('qSizeUpper').value, l = $('qSizeLower').value;
+    $('qSizeUpper').innerHTML = opts; $('qSizeLower').innerHTML = opts;
+    $('qSizeUpper').value = u || ''; $('qSizeLower').value = l || '';
+  }
+  if(!quiet) quickPrice();
+}
+function qSizePrice(p, size){
+  var hit = (p.sizes||[]).filter(function(z){ return z.size === size; })[0];
+  return num(hit ? hit.price : p.price);
+}
+function qGoverningSize(){
+  var p = qProduct(); if(!p) return '';
+  var u = $('qSizeUpper').value, l = $('qSizeLower').value;
+  if(!u) return l; if(!l) return u;
+  return qSizePrice(p,l) > qSizePrice(p,u) ? l : u;
+}
 function quickPrice(){
-  var p = productFor($('qProduct').value, $('qSchool').value, $('qDept').value);
+  var p = qProduct();
   if(!p){ quickRecalc(); return; }
-  var hit = (p.sizes||[]).filter(function(z){ return z.size === $('qSizing').value; })[0];
-  var base = num(hit ? hit.price : p.price);
+  var r = qRule();
+  var base = qSplitOn() ? qSizePrice(p, qGoverningSize()) : qSizePrice(p, $('qSizing').value);
+  if(r && r.bigger && $('qBigSize') && $('qBigSize').checked) base += r.bigger;
   $('qPrice').value = (base + addonTotal($('qProduct').value, qPickedAddons)).toFixed(2);
   quickRecalc(true);
 }
@@ -2187,7 +2617,11 @@ function quickPrice(){
 function qCurrentLine(){
   var unit = num($('qPrice').value), n = parseInt($('qSet').value || 1, 10);
   return {
-    productName: $('qProduct').value, sizing: $('qSizing').value,
+    productName: $('qProduct').value,
+    sizing: qSplitOn() ? qGoverningSize() : $('qSizing').value,
+    sizeUpper: qSplitOn() ? $('qSizeUpper').value : '',
+    sizeLower: qSplitOn() ? $('qSizeLower').value : '',
+    bigSize: !!($('qBigSize') && $('qBigSize').checked && qRule()),
     set: String(n), sellingPrice: unit, orderTotal: unit * n,
     addons: pickedAddonRecords($('qProduct').value, qPickedAddons)
   };
@@ -2347,19 +2781,19 @@ function saveQuickOrder(){
   }
   var id = quickOrderId(paper, quickDate());
 
-  var clash = DB.orders.filter(function(o){ return o.orderId === id; })[0];
-  if(clash && !confirm('Slip ' + id + ' is already in the system for ' +
-      (clash.lastName ? clash.lastName + ', ' + clash.firstName : 'an unnamed customer') +
-      '.\n\nSave another order with the same number?')) return;
-
-  var phone = $('qPhone').value.trim();
-  if(!phone){
-    toast('The phone number is required');
-    $('qPhone').classList.add('missing');
-    $('qPhone').focus();
-    setTimeout(function(){ $('qPhone').classList.remove('missing'); }, 2200);
+  var clash = orderIdClash(id);
+  if(clash){
+    toast('Slip ' + id + ' already belongs to ' + clashWho(clash) + ' — use another number');
+    if($('qNum')){
+      $('qNum').classList.add('missing');
+      $('qNum').focus(); $('qNum').select();
+      setTimeout(function(){ $('qNum').classList.remove('missing'); }, 2600);
+    }
+    quickPreview();
     return;
   }
+
+  var phone = $('qPhone').value.trim();   // taken when offered, never demanded
 
   var all = qLines.slice();
   var cur = qCurrentLine();
@@ -2392,6 +2826,7 @@ function saveQuickOrder(){
       companySchool: school, department: dept, gender: gender,
       dateOrdered: quickDate(), dateDue: '', notes: '',
       productName: g.productName, sizing: g.sizing, set: g.set,
+      sizeUpper: g.sizeUpper || '', sizeLower: g.sizeLower || '', bigSize: !!g.bigSize,
       sellingPrice: g.sellingPrice, orderTotal: g.orderTotal, meas: {},
       addons: g.addons || [],
       block: '', page: '', number: String(parseInt(paper,10)), coder: currentUser(),
@@ -2441,6 +2876,7 @@ function saveQuickOrder(){
   fillSelect('qSchool', DB.schools, school);
   qSchoolChange(true);
   if($('qGender')) $('qGender').value = gender;
+  showOrderSaved(made, paid, {quick:true, change:change});
 }
 
 /* ---------- the day book ----------
@@ -2568,6 +3004,145 @@ function reportGroupKey(o){
   if(g === 'due')     return o.dateDue ? nice(o.dateDue) : 'No due date';
   return '';
 }
+/* ---------- end of day cash count ----------
+   Cash beginning is what was already in the drawer before the first customer.
+   Cash taken in is only the part of the takings that actually reaches the
+   drawer, so GCash and bank transfers are left out. Deductions are whatever
+   left the drawer during the day: petty cash, supplies, a payout to the
+   tailor. What the cashier counts is then compared against what the book
+   says should be there. */
+function isCashMode(m){ return /cash/i.test(m) && !/gcash/i.test(m); }
+function cashTakings(t){
+  return Object.keys(t.byMode).reduce(function(a, m){
+    return a + (isCashMode(m) ? num(t.byMode[m]) : 0);
+  }, 0);
+}
+var BLANK_CASHUP = { float:0, deductions:[], counted:null, closedAt:null, closedBy:'' };
+function cashupGet(key){
+  return (DB.cashups && DB.cashups[key]) || Object.assign({}, BLANK_CASHUP, {deductions:[]});
+}
+function cashupEdit(key){
+  if(!DB.cashups) DB.cashups = {};
+  if(!DB.cashups[key]) DB.cashups[key] = Object.assign({}, BLANK_CASHUP, {deductions:[]});
+  return DB.cashups[key];
+}
+function cashupTotals(key, t){
+  var c = cashupGet(key);
+  var ded = (c.deductions||[]).reduce(function(a,d){ return a + num(d.amt); }, 0);
+  var takings = cashTakings(t);
+  var expected = num(c.float) + takings - ded;
+  var counted = (c.counted === null || c.counted === '') ? null : num(c.counted);
+  return { c:c, ded:ded, takings:takings, expected:expected, counted:counted,
+           diff: counted === null ? null : counted - expected };
+}
+function setCashBeginning(key, v){
+  cashupEdit(key).float = num(v); save(); renderReport();
+}
+function setCashCounted(key, v){
+  var c = cashupEdit(key);
+  c.counted = String(v).trim() === '' ? null : num(v);
+  save(); renderReport();
+}
+function addCashDeduction(key){
+  var nameEl = $('dedName'), amtEl = $('dedAmt');
+  var label = nameEl ? nameEl.value.trim() : '';
+  var amt = amtEl ? num(amtEl.value) : 0;
+  if(!label){ toast('What was the money for?'); if(nameEl) nameEl.focus(); return; }
+  if(amt <= 0){ toast('Enter the amount taken out'); if(amtEl) amtEl.focus(); return; }
+  cashupEdit(key).deductions.push({ label:label, amt:amt, at:stamp(), by:currentUser() });
+  save(); renderReport();
+  toast('Deduction recorded');
+  if($('dedName')) $('dedName').focus();
+}
+function removeCashDeduction(key, i){
+  var c = cashupEdit(key);
+  if(c.closedAt){ toast('The count is closed — reopen it first'); return; }
+  var gone = c.deductions.splice(i, 1)[0];
+  save(); renderReport();
+  if(gone) toast('Removed ' + peso(gone.amt));
+}
+function closeCashup(key){
+  var x = cashupTotals(key, reportTotals(reportRows()));
+  if(x.counted === null){ toast('Count the drawer first'); return; }
+  var c = cashupEdit(key);
+  c.closedAt = stamp(); c.closedBy = currentUser();
+  c.closedExpected = x.expected; c.closedDiff = x.diff;
+  save(); renderReport();
+  toast(Math.abs(x.diff) < 0.005 ? 'Drawer balances — day closed'
+        : 'Day closed · ' + (x.diff > 0 ? 'over ' : 'short ') + peso(Math.abs(x.diff)));
+}
+function reopenCashup(key){
+  if(!requireAdmin()) return;
+  var c = cashupEdit(key);
+  c.closedAt = null; c.closedBy = '';
+  save(); renderReport(); toast('Count reopened');
+}
+function cashupPanel(t){
+  var r = reportRange();
+  if(!r.single){
+    return '<div class="card coh"><p class="eyebrow">Cash on hand</p>'+
+      '<h3>End of day count</h3>'+
+      '<p class="sub">Pick a single day to count the drawer. This range covers '+
+      esc(rangeLabel())+'.</p></div>';
+  }
+  var key = r.from, x = cashupTotals(key, t), locked = !!x.c.closedAt;
+  var ro = locked ? ' disabled' : '';
+
+  var dedRows = (x.c.deductions||[]).map(function(dd, i){
+    return '<div class="ded"><span class="dname">'+esc(dd.label)+
+      (dd.by ? ' <span class="sub">· '+esc(dd.by)+'</span>' : '')+'</span>'+
+      '<span class="damt">-'+peso(dd.amt)+'</span>'+
+      (locked ? '' : '<button type="button" title="Remove" onclick="removeCashDeduction(\''+key+'\','+i+')">&times;</button>')+
+      '</div>';
+  }).join('') || '<p class="sub">Nothing taken out of the drawer today.</p>';
+
+  var variance = '';
+  if(x.counted !== null){
+    var off = Math.abs(x.diff) >= 0.005;
+    variance = '<div class="variance '+(off?'off':'ok')+'">'+
+      (off ? (x.diff > 0 ? 'Over by ' : 'Short by ') + peso(Math.abs(x.diff))
+           : 'Drawer balances exactly')+'</div>';
+  }
+
+  return '<div class="card coh"><p class="eyebrow">Cash on hand</p>'+
+    '<h3>End of day count · '+esc(nice(key))+'</h3>'+
+
+    '<div class="kv"><span class="k">Cash beginning</span><span class="v">'+
+      '<input type="text" inputmode="decimal" value="'+(num(x.c.float)?num(x.c.float).toFixed(2):'')+'" '+
+      'placeholder="0.00" onchange="setCashBeginning(\''+key+'\',this.value)"'+ro+'></span></div>'+
+    '<div class="kv"><span class="k">Cash taken in <span class="sub">(GCash and transfers excluded)</span></span>'+
+      '<span class="v mono">'+peso(x.takings)+'</span></div>'+
+
+    '<hr class="rule"><p class="eyebrow">Deductions</p>'+
+    dedRows+
+    (locked ? '' :
+      '<div class="dedadd">'+
+        '<input class="dl" id="dedName" type="text" placeholder="What was it for?" '+
+          'onkeydown="if(event.key===\'Enter\'){event.preventDefault();$(\'dedAmt\').focus();}">'+
+        '<input class="da" id="dedAmt" type="text" inputmode="decimal" placeholder="0.00" '+
+          'onkeydown="if(event.key===\'Enter\'){event.preventDefault();addCashDeduction(\''+key+'\');}">'+
+        '<button type="button" class="btn btn-ghost" onclick="addCashDeduction(\''+key+'\')">Add</button>'+
+      '</div>')+
+    '<div class="kv"><span class="k">Total deductions</span>'+
+      '<span class="v mono">'+(x.ded ? '-'+peso(x.ded) : peso(0))+'</span></div>'+
+
+    '<hr class="rule">'+
+    '<div class="kv total"><span class="k"><b>Should be in the drawer</b></span>'+
+      '<span class="v mono"><b>'+peso(x.expected)+'</b></span></div>'+
+    '<div class="kv"><span class="k">Counted</span><span class="v">'+
+      '<input type="text" inputmode="decimal" value="'+(x.counted===null?'':x.counted.toFixed(2))+'" '+
+      'placeholder="count it" onchange="setCashCounted(\''+key+'\',this.value)"'+ro+'></span></div>'+
+    variance+
+
+    (locked
+      ? '<div class="sealed">Closed '+stampNice(x.c.closedAt)+
+        (x.c.closedBy ? ' by '+esc(x.c.closedBy) : '')+'</div>'+
+        '<div style="margin-top:9px"><button type="button" class="btn btn-ghost" '+
+        'onclick="reopenCashup(\''+key+'\')">Reopen count</button></div>'
+      : '<div style="margin-top:12px"><button type="button" class="btn btn-primary" '+
+        'onclick="closeCashup(\''+key+'\')">Close the day</button></div>')+
+  '</div>';
+}
 function reportTotals(list){
   var t = { count:0, voided:0, sales:0, collected:0, outstanding:0,
             corrected:0, needsDetails:0, noProof:0, noMeas:0, byMode:{} };
@@ -2646,6 +3221,7 @@ function renderReport(){
       modeRows +
       (flags ? '<hr class="rule">'+flags : '')+
     '</div>'+
+    cashupPanel(t)+
     (list.length
       ? '<div class="card"><p class="eyebrow">Transactions</p><h3>'+list.length+
         (r.single ? ' on this day' : ' over '+esc(label))+'</h3>'+
@@ -2729,7 +3305,10 @@ function printMeasureSheet(){
   area.className = 'report';
   area.innerHTML = h;
   printNow();
-  setTimeout(function(){ area.className = 'pos'; setPrintStyle('pos'); }, 800);
+  // Do NOT revert on a timer. Android renders the page when the print
+  // dialog builds its preview, well after any timeout would fire. Each
+  // print function sets its own styling first, so leaving this in place
+  // until the next print is safe.
 }
 
 /* One narrow slip per garment, to pin to the cloth as it goes through. */
@@ -2860,7 +3439,10 @@ function printDayReport(){
   area.className = 'report';
   area.innerHTML = h;
   printNow();
-  setTimeout(function(){ area.className = 'pos'; setPrintStyle('pos'); }, 800);
+  // Do NOT revert on a timer. Android renders the page when the print
+  // dialog builds its preview, well after any timeout would fire. Each
+  // print function sets its own styling first, so leaving this in place
+  // until the next print is safe.
 }
 function exportDayCSV(){
   var list = reportRows();
@@ -2873,77 +3455,195 @@ function exportDayCSV(){
    Nothing is quietly overwritten. The original figures are kept on the record
    and every correction is stamped with who, when and why, so the day's report
    can show that a transaction was touched after the fact. */
+/* ---------- ask(): the in-app replacement for prompt() and confirm() ----------
+   Native prompt() is drawn by Android, not by this page, and its text field
+   frequently never receives keyboard focus on a tablet. Everything here is
+   ordinary HTML, so it looks like the rest of the shop and it types.
+
+   Because a drawn modal cannot block the way prompt() does, the answer comes
+   back through a callback instead of a return value.
+
+     ask({title:'..', body:'..', kind:'confirm'}, function(yes){ })
+     ask({title:'..', kind:'text',   value:'12'},  function(str){ })   null = cancelled
+     ask({title:'..', kind:'choice', choices:[{label:'..',value:'1'}]}, function(v){ })
+*/
+var ASK_CB = null;
+
+function ask(opts, done){
+  var wrap = $('askWrap'), box = $('askBox');
+  if(!wrap || !box){ done(null); return; }
+  ASK_CB = done;
+  opts = opts || {};
+  var kind = opts.kind || 'confirm';
+
+  var h = '<h3>' + esc(opts.title || '') + '</h3>';
+  if(opts.body) h += '<div class="askbody">' + esc(opts.body) + '</div>';
+
+  if(kind === 'text'){
+    h += '<input id="askInput" type="text"' +
+         ' inputmode="' + (opts.inputmode || 'text') + '"' +
+         ' placeholder="' + esc(opts.placeholder || '') + '"' +
+         ' value="' + esc(opts.value == null ? '' : String(opts.value)) + '">';
+  }
+  if(kind === 'choice'){
+    h += '<div class="askchoice">';
+    (opts.choices || []).forEach(function(c, i){
+      h += '<button class="btn ' + (c.tone === 'danger' ? 'btn-danger' : 'btn-ghost') +
+           '" onclick="askPick(' + i + ')">' + esc(c.label) + '</button>';
+    });
+    h += '</div>';
+  }
+
+  h += '<div class="askfoot">';
+  h += '<button class="btn btn-ghost" onclick="askClose(null)">Cancel</button>';
+  if(kind !== 'choice'){
+    h += '<button class="btn ' + (opts.tone === 'danger' ? 'btn-danger' : 'btn-primary') +
+         '" onclick="askOk()">' + esc(opts.okLabel || 'OK') + '</button>';
+  }
+  h += '</div>';
+
+  box.innerHTML = h;
+  ASK_OPTS = opts;
+  wrap.hidden = false;
+
+  if(kind === 'text'){
+    // A short delay, then focus. WebView ignores focus() called in the same
+    // tick as the element being inserted, and the keyboard never appears.
+    setTimeout(function(){
+      var el = $('askInput');
+      if(!el) return;
+      el.focus();
+      try { el.setSelectionRange(0, el.value.length); } catch(e){}
+    }, 60);
+  }
+}
+var ASK_OPTS = {};
+
+function askClose(result){
+  var wrap = $('askWrap');
+  if(wrap){ wrap.hidden = true; $('askBox').innerHTML = ''; }
+  var cb = ASK_CB; ASK_CB = null;
+  if(cb) cb(result);
+}
+function askOk(){
+  if((ASK_OPTS.kind || 'confirm') === 'text'){
+    var el = $('askInput');
+    askClose(el ? el.value : '');
+  } else {
+    askClose(true);
+  }
+}
+function askPick(i){
+  var c = (ASK_OPTS.choices || [])[i];
+  askClose(c ? c.value : null);
+}
+/* Enter submits a text answer. */
+document.addEventListener('keydown', function(e){
+  var wrap = $('askWrap');
+  if(!wrap || wrap.hidden) return;
+  if(e.key === 'Enter' && (ASK_OPTS.kind || '') === 'text'){ e.preventDefault(); askOk(); }
+  if(e.key === 'Escape'){ e.preventDefault(); askClose(null); }
+});
+
 function correctOrder(id){
   var o = DB.orders.filter(function(x){ return x.id === id; })[0];
   if(!o) return;
-  var tt = ticketTotals(o.ticketId);
-
-  var what = prompt(
-    'Correct ' + o.orderId + '\n\n' +
-    'Total ' + peso(o.orderTotal) + ' · paid ' + peso(o.amountPaid) + ' · balance ' + peso(o.balance) + '\n\n' +
-    'What needs fixing?\n' +
-    '  1 — the order total\n' +
-    '  2 — the amount paid\n' +
-    '  3 — the payment method\n' +
-    '  4 — cancel this whole transaction\n\n' +
-    'Type 1, 2, 3 or 4.');
-  if(what === null) return;
-  what = String(what).trim();
 
   var before = { orderTotal:o.orderTotal, amountPaid:o.amountPaid, balance:o.balance,
                  paymentMode:o.paymentMode, voided:!!o.voided };
-  var summary = '';
 
-  if(what === '1'){
-    var nt = prompt('Correct order total in pesos.\n\nCurrently ' + peso(o.orderTotal), num(o.orderTotal).toFixed(2));
-    if(nt === null) return;
-    if(num(nt) <= 0){ toast('That is not a valid total'); return; }
-    o.orderTotal = num(nt);
-    o.sellingPrice = num(nt) / Math.max(1, parseInt(o.set||1,10));
-    summary = 'total ' + peso(before.orderTotal) + ' → ' + peso(o.orderTotal);
-  }
-  else if(what === '2'){
-    var np = prompt('Correct amount actually paid in pesos.\n\nCurrently ' + peso(o.amountPaid), num(o.amountPaid).toFixed(2));
-    if(np === null) return;
-    var amt = num(np);
-    if(amt < 0){ toast('That is not a valid amount'); return; }
-    o.payments = amt > 0
-      ? [{amt:amt, mode:(o.payments && o.payments[0] ? o.payments[0].mode : 'Cash'), at:stamp(), corrected:true}]
-      : [];
-    o.amountPaid = amt;
-    summary = 'paid ' + peso(before.amountPaid) + ' → ' + peso(amt);
-  }
-  else if(what === '3'){
-    var nm = prompt('Correct payment method.\n\nType Cash, GCash, Maya, Bank transfer, Card or Other.',
-                    (o.payments && o.payments[0] ? o.payments[0].mode : 'Cash'));
-    if(nm === null || !String(nm).trim()) return;
-    (o.payments||[]).forEach(function(pay){ pay.mode = String(nm).trim(); pay.corrected = true; });
-    summary = 'method ' + (before.paymentMode || '—') + ' → ' + String(nm).trim();
-  }
-  else if(what === '4'){
-    if(!confirm('Cancel ' + o.orderId + ' entirely?\n\nIt stays in the records marked cancelled, and is left out of the sales totals.')) return;
-    o.voided = true;
-    summary = 'transaction cancelled';
-  }
-  else { toast('Nothing changed'); return; }
+  ask({
+    title: 'Correct ' + o.orderId,
+    body: 'Total ' + peso(o.orderTotal) + '   Paid ' + peso(o.amountPaid) +
+          '   Balance ' + peso(o.balance) + '\n\nWhat needs fixing?',
+    kind: 'choice',
+    choices: [
+      { label:'The order total',              value:'1' },
+      { label:'The amount paid',              value:'2' },
+      { label:'The payment method',           value:'3' },
+      { label:'Cancel this whole transaction',value:'4', tone:'danger' }
+    ]
+  }, function(what){
+    if(what === null) return;
 
-  var why = prompt('Why is this being corrected?\n\ne.g. wrong amount keyed, customer changed order, double entry');
-  if(why === null) return;
+    if(what === '1'){
+      ask({ title:'Correct order total',
+            body:'Currently ' + peso(o.orderTotal),
+            kind:'text', inputmode:'decimal',
+            value:num(o.orderTotal).toFixed(2) }, function(nt){
+        if(nt === null) return;
+        if(num(nt) <= 0){ toast('That is not a valid total'); return; }
+        o.orderTotal   = num(nt);
+        o.sellingPrice = num(nt) / Math.max(1, parseInt(o.set||1,10));
+        askWhy(o, before, 'total ' + peso(before.orderTotal) + ' \u2192 ' + peso(o.orderTotal), id);
+      });
+    }
+    else if(what === '2'){
+      ask({ title:'Correct amount paid',
+            body:'Currently ' + peso(o.amountPaid),
+            kind:'text', inputmode:'decimal',
+            value:num(o.amountPaid).toFixed(2) }, function(np){
+        if(np === null) return;
+        var amt = num(np);
+        if(amt < 0){ toast('That is not a valid amount'); return; }
+        o.payments = amt > 0
+          ? [{amt:amt, mode:(o.payments && o.payments[0] ? o.payments[0].mode : 'Cash'), at:stamp(), corrected:true}]
+          : [];
+        o.amountPaid = amt;
+        askWhy(o, before, 'paid ' + peso(before.amountPaid) + ' \u2192 ' + peso(amt), id);
+      });
+    }
+    else if(what === '3'){
+      ask({ title:'Correct payment method',
+            kind:'choice',
+            choices:[
+              { label:'Cash',          value:'Cash' },
+              { label:'GCash',         value:'GCash' },
+              { label:'Maya',          value:'Maya' },
+              { label:'Bank transfer', value:'Bank transfer' },
+              { label:'Card',          value:'Card' },
+              { label:'Other',         value:'Other' }
+            ] }, function(nm){
+        if(nm === null) return;
+        (o.payments||[]).forEach(function(pay){ pay.mode = nm; pay.corrected = true; });
+        askWhy(o, before, 'method ' + (before.paymentMode || '\u2014') + ' \u2192 ' + nm, id);
+      });
+    }
+    else if(what === '4'){
+      ask({ title:'Cancel ' + o.orderId + '?',
+            body:'It stays in the records marked cancelled, and is left out of the sales totals.',
+            kind:'confirm', okLabel:'Cancel the order', tone:'danger' }, function(yes){
+        if(!yes) return;
+        o.voided = true;
+        askWhy(o, before, 'transaction cancelled', id);
+      });
+    }
+  });
+}
 
-  // recompute the money after any change
-  o.amountPaid = (o.payments||[]).reduce(function(a,x){ return a + num(x.amt); }, 0);
-  o.balance = num(o.orderTotal) - o.amountPaid;
-  o.paid = (o.balance <= 0 && num(o.orderTotal) > 0) ? 'Yes' : 'No';
-  o.paymentMode = tenderLabel((o.payments||[]).map(function(x){ return {amt:x.amt, mode:x.mode}; }));
+/* Every correction ends the same way: ask why, then stamp and save. */
+function askWhy(o, before, summary, id){
+  ask({ title:'Why is this being corrected?',
+        body:'e.g. wrong amount keyed, customer changed order, double entry',
+        kind:'text', placeholder:'Reason' }, function(why){
+    if(why === null || !String(why).trim()){ toast('A reason is needed \u2014 nothing changed'); return; }
 
-  o.corrections = o.corrections || [];
-  o.corrections.push({ at:stamp(), by:currentUser(), what:summary, why:String(why).trim(), before:before });
-  o.corrected = true;
+    o.amountPaid  = (o.payments||[]).reduce(function(a,x){ return a + num(x.amt); }, 0);
+    o.balance     = num(o.orderTotal) - o.amountPaid;
+    o.paid        = (o.balance <= 0 && num(o.orderTotal) > 0) ? 'Yes' : 'No';
+    o.paymentMode = tenderLabel((o.payments||[]).map(function(x){ return {amt:x.amt, mode:x.mode}; }));
 
-  logEvent(o, 'CORRECTION by ' + currentUser() + ' — ' + summary + '. Reason: ' + String(why).trim());
-  save(); queueSync();
-  openOrder(id);
-  toast('Correction recorded');
+    o.corrections = o.corrections || [];
+    o.corrections.push({ at:stamp(), by:currentUser(), what:summary,
+                         why:String(why).trim(), before:before });
+    o.corrected = true;
+
+    logEvent(o, 'CORRECTION by ' + currentUser() + ' \u2014 ' + summary +
+                '. Reason: ' + String(why).trim());
+    save(); queueSync();
+    openOrder(id);
+    toast('Correction recorded');
+  });
 }
 
 /* ---------- QR codes: one per garment, for hand-off ----------
@@ -3039,7 +3739,10 @@ function printQRLabel(id){
   area.className = 'qlabels';
   area.innerHTML = qrLabelHTML(o);
   printNow();
-  setTimeout(function(){ area.className = 'pos'; setPrintStyle('pos'); }, 800);
+  // Do NOT revert on a timer. Android renders the page when the print
+  // dialog builds its preview, well after any timeout would fire. Each
+  // print function sets its own styling first, so leaving this in place
+  // until the next print is safe.
 }
 
 /* When one customer has several garments, each still needs its own label. */
@@ -3059,7 +3762,10 @@ function printTicketLabels(id){
   area.className = 'qlabels';
   area.innerHTML = ready.map(qrLabelHTML).join('');
   printNow();
-  setTimeout(function(){ area.className = 'pos'; setPrintStyle('pos'); }, 800);
+  // Do NOT revert on a timer. Android renders the page when the print
+  // dialog builds its preview, well after any timeout would fire. Each
+  // print function sets its own styling first, so leaving this in place
+  // until the next print is safe.
   toast(blocked
     ? 'Printing ' + ready.length + ' label(s) · ' + blocked + ' skipped, details missing'
     : 'Printing ' + ready.length + ' label(s)');
@@ -3085,7 +3791,10 @@ function printAllPendingLabels(){
   area.className = 'qlabels';
   area.innerHTML = list.map(qrLabelHTML).join('');
   printNow();
-  setTimeout(function(){ area.className = 'pos'; setPrintStyle('pos'); }, 800);
+  // Do NOT revert on a timer. Android renders the page when the print
+  // dialog builds its preview, well after any timeout would fire. Each
+  // print function sets its own styling first, so leaving this in place
+  // until the next print is safe.
   toast('Printing ' + list.length + ' label(s)');
 }
 
@@ -3412,6 +4121,24 @@ function queueSync(){
     if(c.pull) setTimeout(function(){ pullSync(false); }, 2500);
   }, 4000);
 }
+/* Google answers with a web page, not data, when the deployment is not open
+   to everyone or the address is wrong. Saying so beats showing the raw
+   parser error. */
+function syncTrouble(txt){
+  var t = String(txt||'').trim();
+  if(t.charAt(0) !== '<') return '';
+  if(/accounts\.google|sign ?in|ServiceLogin/i.test(t))
+    return 'the script asked for a Google sign-in — in Apps Script open ' +
+           'Deploy, Manage deployments, and set "Who has access" to Anyone';
+  if(/unable to open the file|drive/i.test(t))
+    return 'that address does not point at a deployed script — copy the /exec ' +
+           'URL again from Deploy, Manage deployments';
+  if(/moved|redirect/i.test(t))
+    return 'Google redirected the request — redeploy with Deploy, ' +
+           'Manage deployments, Version: New version';
+  return 'the script sent back a web page instead of data — check the URL ends ' +
+         'in /exec and that "Who has access" is Anyone';
+}
 function sheetRow(o){
   var m = o.meas || {};
   return [o.id, o.orderId, o.ticketId||'', o.lineNo||1, o.lineCount||1,
@@ -3426,7 +4153,15 @@ function sheetRow(o){
     (o.payments||[]).map(function(p){ return peso(p.amt)+' '+(p.mode||'')+' '+stampNice(p.at); }).join(' | '),
     (o.log||[]).map(function(e){ return stampNice(e.at)+' '+e.what; }).join(' | '),
     o.updatedAt ? stampNice(o.updatedAt) : '',
-    (DB.device && DB.device.name) || ''];
+    (DB.device && DB.device.name) || '',
+    // added at the end on purpose: existing sheet columns keep their places
+    o.sizeUpper || '', o.sizeLower || '', o.bigSize ? 'Yes' : 'No'];
+}
+/* True when the lists here differ from the last set the sheet acknowledged. */
+function listsDiffer(){
+  var c = syncCfg();
+  stampListChanges();
+  return JSON.stringify(listSnapshot()) !== (c.listsSentHash || '');
 }
 function syncNow(manual){
   var c = syncCfg();
@@ -3437,7 +4172,9 @@ function syncNow(manual){
     renderSync(); if(manual) toast('No internet — orders stay queued'); return;
   }
   var batch = unsyncedOrders();
-  if(!batch.length){ c.lastMsg = 'Everything is already on the sheet'; renderSync();
+  var listsChanged = listsDiffer();
+  if(!batch.length && !listsChanged){
+    c.lastMsg = 'Everything is already on the sheet'; renderSync();
     if(manual) toast('Nothing new to send'); return; }
 
   syncing = true;
@@ -3451,17 +4188,22 @@ function syncNow(manual){
       secret: c.secret || '',
       device: (DB.device && DB.device.name) || '',
       code: deviceCode(),
-      rows: batch.map(function(o){ return { cells: sheetRow(o), data: JSON.stringify(o) }; })
+      rows: batch.map(function(o){ return { cells: sheetRow(o), data: JSON.stringify(o) }; }),
+      lists: listBundle()
     })
   })
   .then(function(r){ return r.text(); })
   .then(function(txt){
     var ok = false, msg = txt;
+    var trouble = syncTrouble(txt);
+    if(trouble) throw new Error(trouble);
     try{ var j = JSON.parse(txt); ok = !!j.ok; msg = j.message || (j.saved + ' saved'); }catch(e){}
     if(!ok) throw new Error(msg || 'The script did not accept it');
     batch.forEach(function(o){ o.syncedAt = sentAt; });
+    c.listsSentHash = JSON.stringify(listSnapshot());
     c.lastAt = stamp();
-    c.lastMsg = batch.length + ' order(s) sent · ' + msg;
+    c.lastMsg = batch.length + ' order(s) sent · ' + msg +
+                (listsChanged && msg.indexOf('lists updated') === -1 ? ' · lists updated' : '');
     syncing = false; save(); renderSync();
     if(manual) toast('Sheet updated');
   })
@@ -3492,13 +4234,23 @@ function pullSync(manual){
   fetch(url)
     .then(function(r){ return r.text(); })
     .then(function(txt){
+      var trouble = syncTrouble(txt);
+      if(trouble) throw new Error(trouble);
       var j = JSON.parse(txt);
       if(!j.ok) throw new Error(j.message || 'the script refused the request');
       var incoming = (j.orders || []).filter(function(o){ return o && o.id; });
+      var lstats = mergeLists(j.lists);
+      var lmoved = lstats.added + lstats.updated + lstats.removed;
+      var lnote = lmoved ? (' · lists: ' + lstats.added + ' new, ' +
+                  lstats.updated + ' changed, ' + lstats.removed + ' removed') : '';
+      if(lmoved){ refreshAllLists(); }
       syncing = false;
       if(!incoming.length){
-        c.lastPullAt = stamp(); c.lastMsg = 'Sheet had nothing new';
-        save(); renderSync(); if(manual) toast('Nothing new on the sheet'); return;
+        c.lastPullAt = stamp();
+        c.lastMsg = lmoved ? ('Lists brought up to date' + lnote) : 'Sheet had nothing new';
+        save(); renderSync();
+        if(manual) toast(lmoved ? 'Lists updated' : 'Nothing new on the sheet');
+        return;
       }
       var before = DB.orders.length;
       var stats = mergeBackup({ orders: incoming, schools: [], departments: [], products: [],
@@ -3514,7 +4266,7 @@ function pullSync(manual){
       c.lastPullAt = stamp();
       var stillDirty = unsyncedOrders().length;
       c.lastMsg = 'Pulled ' + incoming.length + ' order(s) from the sheet · ' +
-                  (DB.orders.length - before) + ' new here' +
+                  (DB.orders.length - before) + ' new here' + lnote +
                   (stillDirty ? ' · sending ' + stillDirty + ' merged order(s) back up' : '');
       save(); renderSync(); renderFind && renderFind();
       toast('Pulled ' + incoming.length + ' order(s)');
@@ -3535,9 +4287,10 @@ function syncBoth(manual){
   setTimeout(function(){ pullSync(manual); }, 1800);
 }
 function markAllUnsynced(){
-  if(!askPassword('Re-send all ' + DB.orders.length + ' orders to the sheet?')) return;
-  DB.orders.forEach(function(o){ delete o.syncedAt; });
-  save(); renderSync(); toast('Everything queued for the next sync');
+  askPassword('Re-send all ' + DB.orders.length + ' orders to the sheet?', function(){
+    DB.orders.forEach(function(o){ delete o.syncedAt; });
+    save(); renderSync(); toast('Everything queued for the next sync');
+  });
 }
 function renderSync(){
   if(!$('syncUrl')) return;
@@ -3559,11 +4312,12 @@ function renderSync(){
    see who touched what and when. */
 var SHOP_PASSWORD = '2164';
 
-function askPassword(reason){
-  var pw = prompt(reason + '\n\nEnter the shop password.');
-  if(pw === null) return false;
-  if(String(pw).trim() !== SHOP_PASSWORD){ toast('Wrong password — nothing changed'); return false; }
-  return true;
+function askPassword(reason, then){
+  ask({ title:'Shop password', body:reason, kind:'text', inputmode:'numeric' }, function(pw){
+    if(pw === null) return;
+    if(String(pw).trim() !== SHOP_PASSWORD){ toast('Wrong password — nothing changed'); return; }
+    if(then) then();
+  });
 }
 function logEvent(o, what, quiet){
   o.log = o.log || [];
@@ -3722,7 +4476,10 @@ function readForm(){
     department: $('department').value,
     gender: $('gender').value,
     productName: $('productName').value,
-    sizing: $('sizing').value,
+    sizing: splitIsOn() ? governingSize() : $('sizing').value,
+    sizeUpper: splitIsOn() ? $('sizeUpper').value : '',
+    sizeLower: splitIsOn() ? $('sizeLower').value : '',
+    bigSize: !!($('isBigSize') && $('isBigSize').checked && ruleFor($('productName').value)),
     set: $('set').value,
     block: $('block').value.trim(),
     page: $('page').value.trim(),
@@ -3753,6 +4510,10 @@ function fillForm(o){
   pickedAddons = (o.addons||[]).map(function(a){ return a.name; });
   refreshAddonButtons();
   fillSizes(o.sizing||'', true);
+  if($('isBigSize')) $('isBigSize').checked = !!o.bigSize;
+  if($('isSplitSize')) $('isSplitSize').checked = !!(o.sizeUpper || o.sizeLower);
+  syncGarmentOptions(true);
+  if(o.sizeUpper || o.sizeLower) fillSplitSizes(o.sizeUpper||'', o.sizeLower||'');
   $('gender').value = o.gender||'';
   $('set').value = o.set||'1';
   $('block').value = o.block||'';
@@ -3802,6 +4563,69 @@ function fillForm(o){
   recalc();
 }
 
+/* ---------- what happens after an order is written ----------
+   The form clears itself and this sheet stays up until the counter says what
+   to do next, so nobody is left wondering whether the order went through. */
+var savedOrderId = null;
+var savedMode = 'order';        // which screen to go back to for the next one
+function showOrderSaved(made, paidNow, opts){
+  opts = opts || {};
+  if(!$('savedSheet')) { openOrder(made[0].id); return; }
+  savedOrderId = made[0].id;
+  savedMode = opts.quick ? 'quick' : 'order';
+  var total = made.reduce(function(a,o){ return a + num(o.orderTotal); }, 0);
+  var bal = total - num(paidNow);
+  var many = made.length > 1;
+
+  $('savedTitle').textContent = opts.quick
+    ? (many ? (made.length + ' garments on slip saved') : 'Slip saved')
+    : (many ? (made.length + ' garments saved') : 'Order saved');
+  $('savedNo').textContent = many
+    ? (made[0].orderId + ' – ' + made[made.length-1].orderId)
+    : made[0].orderId;
+  $('savedSheet').querySelector('.btn-primary').textContent =
+    opts.quick ? 'New slip' : 'New order';
+
+  var what = esc(made[0].productName || 'Garment') +
+             (many ? ' + ' + (made.length - 1) + ' more' : '');
+  $('savedLines').innerHTML =
+    '<div class="kv"><span class="k">' + (many ? 'Garments' : 'Garment') + '</span>' +
+      '<span class="v">' + what + '</span></div>' +
+    '<div class="kv"><span class="k">Order total</span>' +
+      '<span class="v mono">' + peso(total) + '</span></div>' +
+    '<div class="kv"><span class="k">Paid</span>' +
+      '<span class="v mono">' + peso(paidNow) + '</span></div>' +
+    (num(opts.change) > 0
+      ? '<div class="kv"><span class="k">Change</span>' +
+        '<span class="v mono">' + peso(opts.change) + '</span></div>' : '') +
+    '<div class="kv"><span class="k"><b>' + (bal > 0 ? 'Balance' : 'Fully paid') + '</b></span>' +
+      '<span class="v mono"><b>' + peso(bal) + '</b></span></div>' +
+    (opts.quick
+      ? '<p class="sub" style="margin:11px 0 0">Measurements and the customer\'s name still to be filled in.</p>'
+      : '');
+
+  $('savedSheet').classList.add('on');
+  $('savedSheet').querySelector('.btn-primary').focus();
+}
+function hideOrderSaved(){
+  if($('savedSheet')) $('savedSheet').classList.remove('on');
+}
+/* Straight into the next customer — the form was already cleared on save. */
+function savedNewOrder(){
+  hideOrderSaved();
+  window.scrollTo(0,0);
+  if(savedMode === 'quick'){
+    go('quick');
+    if($('qNum')) $('qNum').focus();
+    return;
+  }
+  go('new');
+  if($('lastName')) $('lastName').focus();
+}
+function savedViewOrder(){
+  hideOrderSaved();
+  if(savedOrderId) openOrder(savedOrderId);
+}
 function resetForm(quiet){
   $('orderForm').reset();
   $('editingId').value = '';
@@ -3882,6 +4706,7 @@ $('orderForm').addEventListener('submit', function(e){
       department: f.department, gender: f.gender,
       dateOrdered: ymd(new Date()), dateDue: f.dateDue, notes: f.notes,
       productName: g.productName, sizing: g.sizing, set: g.set,
+      sizeUpper: g.sizeUpper || '', sizeLower: g.sizeLower || '', bigSize: !!g.bigSize,
       sellingPrice: g.sellingPrice, orderTotal: g.orderTotal, meas: g.meas,
       addons: g.addons || [],
       block: g.block, page: g.page, number: g.number, coder: g.coder,
@@ -3914,7 +4739,7 @@ $('orderForm').addEventListener('submit', function(e){
   updateDueBadge(); updateQuickBadge();
   queueSync();
   maybeAutoBackup(made.length);
-  openOrder(made[0].id);
+  showOrderSaved(made, paidNow);
 });
 
 /* ---------- find ---------- */
@@ -4281,7 +5106,12 @@ function posReceipt(o){
   h += '<div class="rule"></div>';
   h += '<div class="foot">' + (tt.balance > 0
         ? 'Please settle the balance on pick-up.' : 'Fully paid. Thank you!') +
-       '<br>Keep this slip for claiming.</div>';
+       '<br>Keep this slip for claiming.' +
+       '<div class="rule"></div>' +
+       'Zone 11 A, Block 3, Lot 1<br>Fatima, General Santos City<br>' +
+       'Phone 0966 068 1246<br>' +
+       'FB: Belle\'s Dresshop<br>' +
+       'Google Maps: Belle\'s Dress Shop</div>';
   return h;
 }
 function printOrder(id){
@@ -4756,11 +5586,34 @@ function printSummary(){
   area.className = 'report';
   area.innerHTML = h;
   printNow();
-  setTimeout(function(){ area.className = 'pos'; setPrintStyle('pos'); }, 800);
+  // Do NOT revert on a timer. Android renders the page when the print
+  // dialog builds its preview, well after any timeout would fire. Each
+  // print function sets its own styling first, so leaving this in place
+  // until the next print is safe.
 }
 
 /* ---------- lists ---------- */
 /* The Lists tab: what the order form offers. Any signed-in person can edit it. */
+/* After a pull the dropdowns are stale, so every list-driven control is
+   rebuilt. Whatever the counter had half-typed is preserved. */
+function refreshAllLists(){
+  try{
+    var keepSchool = $('companySchool') ? $('companySchool').value : '';
+    var keepProd   = $('productName') ? $('productName').value : '';
+    var keepQSch   = $('qSchool') ? $('qSchool').value : '';
+    var keepQProd  = $('qProduct') ? $('qProduct').value : '';
+    if(typeof fillSelect === 'function' && $('companySchool')) fillSelect('companySchool', DB.schools, keepSchool);
+    if(typeof refreshDeptChoices === 'function') refreshDeptChoices($('department') ? $('department').value : '');
+    if(typeof refreshProductChoices === 'function') refreshProductChoices(keepProd);
+    if(typeof fillSizes === 'function' && $('sizing')) fillSizes($('sizing').value, true);
+    if(typeof syncGarmentOptions === 'function') syncGarmentOptions(true);
+    if($('qSchool') && typeof fillSelect === 'function') fillSelect('qSchool', DB.schools, keepQSch);
+    if(typeof refreshQProductChoices === 'function') refreshQProductChoices(keepQProd);
+    if(typeof quickSyncOptions === 'function') quickSyncOptions(true);
+    if(typeof renderCatalog === 'function' && $('v-lists') && $('v-lists').classList.contains('on')) renderCatalog();
+    if(typeof renderReport === 'function' && $('v-report') && $('v-report').classList.contains('on')) renderReport();
+  }catch(e){}
+}
 function renderCatalog(){
   if($('schoolChips')){
     $('schoolChips').innerHTML = DB.schools.map(function(s,i){
@@ -5083,6 +5936,12 @@ function prodRow(p, i){
       '<div class="baserow"><label for="pp_'+i+'">Usual price ₱</label>'+
         '<input type="text" id="pp_'+i+'" inputmode="decimal" value="'+num(p.price).toFixed(2)+'" '+
           'onchange="setProdPrice('+i+',this.value)"></div>'+
+      '<div class="baserow"><label for="pb_'+i+'">Bigger size adds ₱</label>'+
+        '<input type="text" id="pb_'+i+'" inputmode="decimal" value="'+num(p.bigger).toFixed(2)+'" '+
+          'onchange="setProdBigger('+i+',this.value)"></div>'+
+      '<div class="check"><input type="checkbox" id="psp_'+i+'"'+(p.split?' checked':'')+
+        ' onchange="setProdSplit('+i+',this.checked)">'+
+        '<label for="psp_'+i+'">Upper and lower sized separately — charge the dearer of the two</label></div>'+
       (cells ? '<div class="szgrid">'+cells+'</div>'
              : '<p class="szempty">Every size uses the usual price. Add one below only if it costs something different.</p>')+
       '<div class="szadd">'+
@@ -5137,14 +5996,31 @@ function fillProdFilter(){
 
 function removeProduct(i){
   var p = DB.products[i];
-  if(!askPassword('Remove ' + p.name + (p.school ? ' for ' + p.school : '') + ' and its size prices?')) return;
-  DB.products.splice(i,1); openProd = null;
-  save(); renderProducts(); refreshProductChoices(); toast('Removed ' + p.name);
+  askPassword('Remove ' + p.name + (p.school ? ' for ' + p.school : '') + ' and its size prices?', function(){
+    DB.products.splice(i,1); openProd = null;
+    save(); renderProducts(); refreshProductChoices(); toast('Removed ' + p.name);
+  });
 }
 
 function setProdPrice(i, v){
   DB.products[i].price = num(v);
   save(); renderProducts(); toast('Price updated');
+}
+/* Surcharge added when the "bigger size" box is ticked on an order. 0 hides it. */
+function setProdBigger(i, v){
+  var p = DB.products[i];
+  p.bigger = num(v);
+  save(); renderProducts(); syncGarmentOptions(true); quickSyncOptions(true);
+  toast(p.bigger ? p.name + ' · bigger size adds ' + peso(p.bigger)
+                 : p.name + ' · no bigger-size surcharge');
+}
+/* Two-piece garment: the order taker can give the upper and lower different
+   sizes, and it is charged on whichever of the two costs more. */
+function setProdSplit(i, on){
+  var p = DB.products[i];
+  p.split = !!on;
+  save(); renderProducts(); syncGarmentOptions(true); quickSyncOptions(true);
+  toast(p.name + (on ? ' · upper and lower sized separately' : ' · single size'));
 }
 /* After adding a size, offer the next one up so a run of sizes is quick to key in. */
 function nextSizeSuggestion(p){
@@ -5520,15 +6396,21 @@ readBackupFile($('mergeFile'), function(d, name){
 });
 function wipeAll(){
   if(!DB.orders.length){ toast('There are no orders to delete'); return; }
-  if(!askPassword('Delete all ' + DB.orders.length + ' orders?')) return;
-  if(!confirm('A backup file will be saved to Downloads first.\n\nThen all ' + DB.orders.length + ' orders will be deleted. Continue?')) return;
-  exportJSON();
-  var n = DB.orders.length;
-  setTimeout(function(){
-    DB.orders = []; DB.counter = 0; save();
-    renderLists(); updateDueBadge(); updateQuickBadge();
-    toast('Backup saved · ' + n + ' orders deleted');
-  }, 800);
+  askPassword('Delete all ' + DB.orders.length + ' orders?', function(){
+    ask({ title:'Delete every order?',
+          body:'A backup file is saved to Downloads first, then all ' +
+               DB.orders.length + ' orders are deleted.',
+          kind:'confirm', okLabel:'Delete them', tone:'danger' }, function(yes){
+      if(!yes) return;
+      exportJSON();
+      var n = DB.orders.length;
+      setTimeout(function(){
+        DB.orders = []; DB.counter = 0; save();
+        renderLists(); updateDueBadge(); updateQuickBadge();
+        toast('Backup saved · ' + n + ' orders deleted');
+      }, 800);
+    });
+  });
 }
 
 /* ---------- wiring ---------- */
@@ -5538,8 +6420,18 @@ $('sellingPrice').addEventListener('input', recalc);
 $('orderTotal').addEventListener('input', function(){ totalDirty = true; recalc(); });
 $('productName').addEventListener('change', function(){
   fillSizes();
+  // the previous garment's options must not follow it to a different product
+  if($('isBigSize'))   $('isBigSize').checked = false;
+  if($('isSplitSize')) $('isSplitSize').checked = false;
+  if($('sizeUpper'))   $('sizeUpper').value = '';
+  if($('sizeLower'))   $('sizeLower').value = '';
+  syncGarmentOptions(true);
   applyCatalogPrice();
 });
+if($('isBigSize'))   $('isBigSize').addEventListener('change', applyCatalogPrice);
+if($('isSplitSize')) $('isSplitSize').addEventListener('change', function(){ toggleSplitSize(); });
+if($('sizeUpper'))   $('sizeUpper').addEventListener('change', applyCatalogPrice);
+if($('sizeLower'))   $('sizeLower').addEventListener('change', applyCatalogPrice);
 /* Changing the school narrows the departments, and both narrow the products. */
 $('companySchool').addEventListener('change', function(){
   refreshDeptChoices('');
@@ -5576,7 +6468,58 @@ $('scanPick').addEventListener('change', function(e){ handleScan(e.target.files[
    schools and departments under Setup. */
 
 /* ---------- boot ---------- */
+/* ---------- one-time clean start ----------
+   Everything the app knows lives in the tablet's own storage, not in this
+   file. Changing the date below makes every device that installs this build
+   wipe itself once — orders, lists, staff and the owner account — and set
+   itself up again from nothing. It fires once per device, so ordinary use
+   afterwards is unaffected. Leave the token alone unless a clean start is
+   genuinely wanted. */
+var FRESH_START = '2026-08-03';
+function freshStartIfNeeded(){
+  try{
+    if(localStorage.getItem(KEY + '_fresh') === FRESH_START) return;
+    localStorage.removeItem(KEY);
+    localStorage.setItem(KEY + '_fresh', FRESH_START);
+  }catch(e){}
+}
+
+/* ---------- the shop's standard products ----------
+   Added once, on first run. Anything already in Lists under the same name is
+   left alone, so prices edited in the app are never overwritten. */
+var STANDARD_PRODUCTS = [
+  { name:'DEPARTMENTAL',  price:1550, bigger:100, sizes:[] },
+  { name:'CLINICAL (M)',  price:1500, bigger:100, sizes:[] },
+  { name:'CLINICAL (F)',  price:1600, bigger:100, sizes:[] },
+  { name:'LAB GOWN',      price:975,  sizes:[
+      {size:'S/M', price:975}, {size:'L/XL', price:1055}, {size:'2XL/3XL', price:1175} ] },
+  { name:'SCRUB SUIT',    price:1000, split:true, sizes:[
+      {size:'S/M', price:1000}, {size:'L/XL', price:1050}, {size:'2XL/3XL', price:1150} ] }
+];
+function seedStandardProducts(){
+  var byName = {};
+  DB.products.forEach(function(p){ byName[String(p.name).toUpperCase()] = p; });
+  var touched = 0;
+  STANDARD_PRODUCTS.forEach(function(sp){
+    var have = byName[sp.name];
+    if(have){
+      // an older build may have added the product without its rules
+      if(sp.bigger && have.bigger == null){ have.bigger = sp.bigger; touched++; }
+      if(sp.split  && have.split  == null){ have.split  = true;      touched++; }
+      return;
+    }
+    if(DB.standardsSeeded) return;   // deleted on purpose — do not put it back
+    DB.products.push({ name:sp.name, school:'', department:'', price:sp.price,
+                       bigger:sp.bigger || 0, split:!!sp.split,
+                       sizes:sp.sizes.map(function(z){ return {size:z.size, price:z.price}; }) });
+    touched++;
+  });
+  DB.standardsSeeded = true;
+  if(touched) save();
+}
+freshStartIfNeeded();
 load();
+seedStandardProducts();
 applyPaper();
 window.addEventListener('online', function(){ queueSync(); });
 try{ history.replaceState({belles:'root'}, '', location.href); }catch(e){}
