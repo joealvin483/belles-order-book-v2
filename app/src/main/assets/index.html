@@ -187,6 +187,8 @@ input:required:invalid:not(:placeholder-shown){border-color:#E7B7B2}
 .askfoot{display:flex;gap:9px}
 .askfoot .btn{flex:1}
 
+.hintline{font-size:13px;color:var(--warn);margin:-4px 0 12px;line-height:1.45}
+
 /* ---------- buttons ---------- */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:7px;
@@ -1278,9 +1280,14 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
       <h3>Sync to a Google Sheet</h3>
       <p class="sub">Paste the web-app address of your Apps Script. When the tablet has internet, orders are pushed to the sheet in the background — no file prompts.</p>
       <div class="field"><label for="syncUrl">Web app URL</label>
-        <input type="text" id="syncUrl" placeholder="https://script.google.com/macros/s/…/exec" onchange="setSyncUrl(this.value)"></div>
+        <input type="text" id="syncUrl" placeholder="https://script.google.com/macros/s/…/exec" oninput="syncTouch()"></div>
       <div class="field"><label for="syncSecret">Shared secret (optional)</label>
-        <input type="text" id="syncSecret" placeholder="Must match the script" onchange="setSyncSecret(this.value)"></div>
+        <input type="text" id="syncSecret" placeholder="Must match the script" oninput="syncTouch()"></div>
+      <div class="btn-row" id="syncSaveRow" hidden style="margin-bottom:12px">
+        <button class="btn btn-primary btn-sm" onclick="saveSyncFields()">Save changes</button>
+        <button class="btn btn-ghost btn-sm" onclick="undoSyncFields()">Undo</button>
+      </div>
+      <div class="hintline" id="syncDirtyNote" hidden>Not saved yet — the tablet is still using the old URL and secret.</div>
       <div class="check"><input type="checkbox" id="syncAuto" onchange="setSyncAuto(this.checked)">
         <label for="syncAuto">Push automatically when online</label></div>
       <div class="check"><input type="checkbox" id="syncPull" onchange="setSyncPull(this.checked)">
@@ -4102,6 +4109,29 @@ function syncCfg(){
   DB.sync = DB.sync || {url:'', secret:'', auto:true, lastAt:null, lastMsg:''};
   return DB.sync;
 }
+/* The URL and the shared secret no longer save the moment they are touched.
+   A stray keystroke in either field used to overwrite a working setting with
+   no way back, so both now wait for an explicit Save. */
+var syncDirty = false;
+
+function syncTouch(){
+  syncDirty = true;
+  if($('syncSaveRow'))   $('syncSaveRow').hidden = false;
+  if($('syncDirtyNote')) $('syncDirtyNote').hidden = false;
+}
+function saveSyncFields(){
+  var c = syncCfg();
+  c.url    = String(($('syncUrl')    || {}).value || '').trim();
+  c.secret = String(($('syncSecret') || {}).value || '').trim();
+  syncDirty = false;
+  save(); renderSync();
+  toast('Sync settings saved');
+}
+function undoSyncFields(){
+  syncDirty = false;
+  renderSync();
+  toast('Changes discarded');
+}
 function setSyncUrl(v){ syncCfg().url = String(v||'').trim(); save(); renderSync(); }
 function setSyncSecret(v){ syncCfg().secret = String(v||'').trim(); save(); renderSync(); }
 function setSyncAuto(v){ syncCfg().auto = !!v; save(); renderSync(); if(v) queueSync(); }
@@ -4295,8 +4325,14 @@ function markAllUnsynced(){
 function renderSync(){
   if(!$('syncUrl')) return;
   var c = syncCfg();
-  $('syncUrl').value = c.url || '';
-  $('syncSecret').value = c.secret || '';
+  // Only refill the boxes when there is nothing unsaved in them, otherwise a
+  // background sync would wipe out what is being typed.
+  if(!syncDirty){
+    $('syncUrl').value = c.url || '';
+    $('syncSecret').value = c.secret || '';
+  }
+  if($('syncSaveRow'))   $('syncSaveRow').hidden = !syncDirty;
+  if($('syncDirtyNote')) $('syncDirtyNote').hidden = !syncDirty;
   $('syncAuto').checked = c.auto !== false;
   $('syncPull').checked = !!c.pull;
   var waiting = unsyncedOrders().length;
