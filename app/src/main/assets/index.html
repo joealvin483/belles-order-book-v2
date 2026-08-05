@@ -457,6 +457,16 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
 .qeditbar .qe-txt{flex:1;min-width:180px}
 .qeditbar .qe-ttl{font-weight:700;font-size:14px}
 .qeditbar .qe-sub{font-size:12px;color:var(--ink-2, #666);margin-top:2px}
+.cashnotes{margin-top:4px}
+.cnote{border-left:3px solid var(--line);padding:8px 10px;margin:8px 0;background:var(--paper-2,#FAF7F5);border-radius:0 8px 8px 0}
+.cnote.bad{border-left-color:var(--bad)}
+.cnote.warn{border-left-color:#C9922B}
+.cnote.ok{border-left-color:var(--ok)}
+.cnote .ch{font-weight:700;font-size:13.5px}
+.cnote .cb{font-size:12.5px;color:var(--ink-2,#555);margin-top:3px;line-height:1.45}
+.paytick{display:inline-flex;align-items:center;gap:5px;margin-left:10px;font-size:12px;cursor:pointer}
+.paytick .ok{color:var(--ok)}
+.paytick .bad{color:var(--bad)}
 .savedbtns{display:flex;flex-direction:column;gap:9px}
 .savedbtns .btn{width:100%}
 /* ---------- login gate ---------- */
@@ -1037,7 +1047,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
         <div class="qe-ttl">Correcting slip <span id="qEditNo"></span></div>
         <div class="qe-sub">Change anything below, then press Update slip. The order number, the record and any printed label stay the same.</div>
       </div>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="cancelQuickEdit()">Cancel</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="cancelQuickWork()">Cancel</button>
     </div>
     <div class="card no-print" id="heldCard" style="display:none">
       <p class="eyebrow">On hold</p>
@@ -1236,15 +1246,50 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
         <button class="btn btn-ghost btn-sm" onclick="rShift(1)">Next day ▶</button>
       </div>
       <hr class="rule">
+      <div class="row c2">
+        <div class="field"><label for="rAuditDetail">Audit slip shows</label>
+          <select id="rAuditDetail">
+            <option value="totals">Totals only — short slip</option>
+            <option value="unpaid">Totals + orders still owing</option>
+            <option value="all">Totals + every order</option>
+          </select></div>
+        <div class="field"><label for="rAuditMode">Payments listed</label>
+          <select id="rAuditMode">
+            <option value="">Every payment method</option>
+            <option value="Cash">Cash only</option>
+            <option value="GCash">GCash only</option>
+          </select></div>
+      </div>
       <div class="btn-row">
         <button class="btn btn-primary btn-sm" onclick="printAuditSlip()">Print audit slip</button>
         <button class="btn btn-ghost btn-sm" onclick="printDayReport()">Print full A4 report</button>
         <button class="btn btn-ghost btn-sm" onclick="exportDayCSV()">Export CSV</button>
       </div>
+      <div class="row c2">
+        <div class="field"><label for="rOrderNo">Only this order number</label>
+          <input type="text" id="rOrderNo" inputmode="numeric" autocomplete="off"
+                 placeholder="e.g. 142 — leave blank for all"></div>
+        <div class="field"><label for="rMeasOnly">Measurement slips include</label>
+          <select id="rMeasOnly">
+            <option value="1">Only garments with measurements</option>
+            <option value="0">Every garment</option>
+          </select></div>
+      </div>
       <div class="btn-row" style="margin-top:8px">
         <button class="btn btn-primary btn-sm" onclick="printMeasureSheet()">Print measurement sheet</button>
         <button class="btn btn-ghost btn-sm" onclick="printMeasureSlips()">Measurement slips (POS)</button>
       </div>
+    </div>
+    <div class="card no-print" id="owingCard">
+      <p class="eyebrow">Still owing</p>
+      <h3 id="owingHead">Balances</h3>
+      <p class="sub">Every order with money left on it, biggest first. Text sends the customer
+        their order number, what it is for, and the balance.</p>
+      <div class="btn-row" style="margin-bottom:10px">
+        <button class="btn btn-ghost btn-sm" onclick="renderOwing()">Refresh</button>
+        <button class="btn btn-ghost btn-sm" onclick="printOwing()">Print the list</button>
+      </div>
+      <div id="owingList"></div>
     </div>
     <div id="reportContent"></div>
   </section>
@@ -1799,9 +1844,10 @@ function emergencySave(){
     w.style.display = 'block';
     w.textContent = 'Storage is full — the last order is NOT saved on the tablet. A rescue file went to Downloads. Keep it, then free up space before entering anything else.';
   }
-  alert('The tablet cannot save any more orders.\n\n' +
-        'A rescue file has been downloaded so nothing is lost. Do not clear the browser.\n\n' +
-        'Ask the owner to open Setup, save a backup, and clear old orders.');
+  ask({ title:'The tablet cannot save any more orders',
+        body:'A rescue file has been downloaded so nothing is lost. Do not clear the browser. '+
+             'Ask the owner to open Setup, save a backup, and clear old orders.',
+        kind:'confirm', okLabel:'I understand', tone:'danger' }, function(){});
 }
 
 /* Warn well before the ceiling, not at it. */
@@ -2353,12 +2399,18 @@ function formHasUnsavedWork(){
   return false;
 }
 function logout(){
-  if(formHasUnsavedWork() &&
-     !confirm('This order has not been saved yet.\n\nLogging out will discard it. Continue?')) return;
-  resetForm(true);
-  if($('scanPanel')) $('scanPanel').innerHTML = '';
-  if($('findResults')) $('findResults').innerHTML = '';
-  lockApp();
+  var finish = function(){
+    resetForm(true);
+    if($('scanPanel')) $('scanPanel').innerHTML = '';
+    if($('findResults')) $('findResults').innerHTML = '';
+    lockApp();
+  };
+  if(!formHasUnsavedWork()) return finish();
+  ask({ title:'This order has not been saved yet',
+        body:'Logging out will discard it.',
+        kind:'confirm', okLabel:'Log out anyway', tone:'danger' }, function(yes){
+    if(yes) finish();
+  });
 }
 function afterUnlock(){
   if($('userBtn')) $('userBtn').textContent = currentUser() ? 'Log out · ' + currentUser() : 'Log out';
@@ -2479,10 +2531,14 @@ function stageGarment(){
 }
 function removeLine(i){
   var g = lines[i];
-  if(!confirm('Take ' + (g.productName || 'this garment') + ' at ' + peso(g.orderTotal) +
-              ' out of this order?')) return;
-  lines.splice(i,1); renderLines(); recalc();
-  toast('Garment removed from this order');
+  ask({ title:'Take this garment out?',
+        body:(g.productName || 'This garment') + ' at ' + peso(g.orderTotal) +
+             ' will come off this order.',
+        kind:'confirm', okLabel:'Take it out', tone:'danger' }, function(yes){
+    if(!yes) return;
+    lines.splice(i,1); renderLines(); recalc();
+    toast('Garment removed from this order');
+  });
 }
 function stagedTotal(){
   return lines.reduce(function(a,g){ return a + num(g.orderTotal); }, 0);
@@ -2566,11 +2622,20 @@ function allocatePayment(ls, amt, mode, at){
   }
   return touched;
 }
+var OVERPAY_OK = false;
 function addTicketPayment(tid, amt, mode){
   var ls = ticketLines(tid), at = stamp();
   var t = ticketTotals(tid);
-  if(amt > t.balance + 0.005 &&
-     !confirm('That is more than the ' + peso(t.balance) + ' balance on this order. Record it anyway?')) return false;
+  if(amt > t.balance + 0.005 && !OVERPAY_OK){
+    ask({ title:'That is more than the balance',
+          body:'The balance on this order is ' + peso(t.balance) + '. Record ' + peso(amt) + ' anyway?',
+          kind:'confirm', okLabel:'Record it' }, function(yes){
+      if(!yes) return;
+      OVERPAY_OK = true;
+      try { addTicketPayment(tid, amt, mode); } finally { OVERPAY_OK = false; }
+    });
+    return false;
+  }
   var touched = allocatePayment(ls, amt, mode, at);
   touched.forEach(function(o){
     logEvent(o, 'Payment ' + peso(amt) + ' by ' + mode + ' on the whole order · this garment now ' +
@@ -2673,7 +2738,9 @@ function quickPreview(){
 var quickMode = 'Cash', quickProof = null, quickProofFile = null, qLines = [];
 
 function initQuick(){
-  if($('qDate') && !$('qDate').value) $('qDate').value = ymd(today());
+  // Always today. It feeds the order number, and a tablet left open overnight
+  // would otherwise keep yesterday's date and stamp it onto today's slips.
+  if($('qDate') && $('qDate').value !== ymd(today())) $('qDate').value = ymd(today());
   fillSelect('qSchool', DB.schools, (DB.lastUsed && DB.lastUsed.companySchool) || '');
   qSchoolChange(true);
   if($('qGender')) $('qGender').value = (DB.lastUsed && DB.lastUsed.gender) || '';
@@ -2821,9 +2888,13 @@ function qAddGarment(){
 }
 function qRemoveLine(i){
   var g = qLines[i];
-  if(!confirm('Take ' + (g.productName||'this garment') + ' at ' + peso(g.orderTotal) + ' off this slip?')) return;
-  qLines.splice(i,1);
-  qRenderLines(); quickRecalc(true);
+  ask({ title:'Take this garment off the slip?',
+        body:(g.productName || 'This garment') + ' at ' + peso(g.orderTotal) + '.',
+        kind:'confirm', okLabel:'Take it off', tone:'danger' }, function(yes){
+    if(!yes) return;
+    qLines.splice(i,1);
+    qRenderLines(); quickRecalc(true);
+  });
 }
 function qRenderLines(){
   if(!$('qLineList')) return;
@@ -3121,8 +3192,19 @@ function resumeHeld(id){
   var h = (DB.held || []).filter(function(x){ return x.id === id; })[0];
   if(!h){ toast('That slip is no longer on hold'); renderHeld(); return; }
   if(quickEditTid){ toast('Finish or cancel the correction first'); return; }
-  if(quickHasWork() && !confirm('Bring this slip back to the counter?\n\n' +
-      'What is on screen now will be cleared — press Hold first if you still need it.')) return;
+  if(quickHasWork()){
+    ask({ title:'Bring this slip back to the counter?',
+          body:'What is on screen now will be cleared — press Hold first if you still need it.',
+          kind:'confirm', okLabel:'Bring it back' }, function(yes){
+      if(yes) resumeHeldNow(id);
+    });
+    return;
+  }
+  return resumeHeldNow(id);
+}
+function resumeHeldNow(id){
+  var h = (DB.held || []).filter(function(x){ return x.id === id; })[0];
+  if(!h){ toast('That slip is no longer on hold'); renderHeld(); return; }
   applyQuickSnapshot(h.snap);
   DB.held = (DB.held || []).filter(function(x){ return x.id !== id; });
   save();
@@ -3137,11 +3219,15 @@ function resumeHeld(id){
 function discardHeld(id){
   var h = (DB.held || []).filter(function(x){ return x.id === id; })[0];
   if(!h) return;
-  if(!confirm('Throw away the held slip for paper no. ' + (h.snap && h.snap.num ? h.snap.num : '—') + '?\n\n' +
-              'It has not been saved as an order, so it cannot be got back.')) return;
-  DB.held = (DB.held || []).filter(function(x){ return x.id !== id; });
-  save(); renderHeld();
-  toast('Held slip thrown away');
+  ask({ title:'Throw away this held slip?',
+        body:'Paper no. ' + (h.snap && h.snap.num ? h.snap.num : '—') +
+             '. It was never saved as an order, so it cannot be got back.',
+        kind:'confirm', okLabel:'Throw it away', tone:'danger' }, function(yes){
+    if(!yes) return;
+    DB.held = (DB.held || []).filter(function(x){ return x.id !== id; });
+    save(); renderHeld();
+    toast('Held slip thrown away');
+  });
 }
 function renderHeld(){
   var card = $('heldCard'), list = $('heldList');
@@ -3176,17 +3262,56 @@ function renderHeld(){
    customer's name, measurements, later part-payments, completion. Only what is
    on this screen is replaced. */
 var quickEditTid = null;
+var quickAddTid  = null;   // adding a forgotten garment to an order already saved
 var quickKeptPaid = 0;   // money already on this slip that the screen is not re-taking
 
 function renderQuickEditBar(){
-  var on = !!quickEditTid;
+  var editing = !!quickEditTid, adding = !!quickAddTid, on = editing || adding;
   if($('qEditBar')) $('qEditBar').style.display = on ? '' : 'none';
-  if($('qSaveBtn'))  $('qSaveBtn').textContent  = on ? 'Update slip' : 'Save order';
-  if(on && $('qEditNo')){
-    var ls = ticketLines(quickEditTid);
-    $('qEditNo').textContent = ls.length
-      ? (ls.length > 1 ? ls[0].orderId + '–' + ls[ls.length-1].orderId : ls[0].orderId) : '';
+  if($('qSaveBtn'))  $('qSaveBtn').textContent  =
+    editing ? 'Update slip' : (adding ? 'Add to order' : 'Save order');
+  if($('qHoldBtn'))  $('qHoldBtn').style.display = on ? 'none' : '';
+  if(!on) return;
+
+  var ls = ticketLines(editing ? quickEditTid : quickAddTid);
+  if($('qEditNo')) $('qEditNo').textContent = ls.length ? ticketOrderNo(ls) : '';
+  var head = $('qEditBar') ? $('qEditBar').querySelector('.qe-ttl') : null;
+  var sub  = $('qEditBar') ? $('qEditBar').querySelector('.qe-sub') : null;
+  if(adding && head && sub){
+    var who = ls.length ? String((ls[0].firstName||'') + ' ' + (ls[0].lastName||'')).trim() : '';
+    head.innerHTML = 'Adding to order <span id="qEditNo">' + esc(ticketOrderNo(ls)) + '</span>' +
+                     (who ? ' — ' + esc(who) : '');
+    sub.textContent = 'Only the garment you add here is counted below, so the change you hand '
+      + 'over is for this transaction alone. The order total and balance are worked out again '
+      + 'when you save.';
+  } else if(head && sub){
+    head.innerHTML = 'Correcting slip <span id="qEditNo">' + esc(ticketOrderNo(ls)) + '</span>';
+    sub.textContent = 'Change anything below, then press Update slip. The order number, the '
+      + 'record and any printed label stay the same.';
   }
+}
+/* The number a person would call this order: the slip number without the
+   per-garment suffix. */
+function ticketOrderNo(ls){
+  if(!ls || !ls.length) return '';
+  var id = String(ls[0].orderId || '');
+  // ORD142-080526 is the whole number; ORD142-080526-2 has a garment suffix.
+  // Only the suffix comes off — the six-digit date must survive.
+  var m = id.match(/^(.*-\d{6})-\d{1,3}$/);
+  return m ? m[1] : id;
+}
+/* Highest garment suffix used on this slip so far. */
+function ticketMaxLine(ls){
+  var base = ticketOrderNo(ls), top = 0;
+  (ls || []).forEach(function(x){
+    var id = String(x.orderId || ''), n = 1;
+    if(base && id.length > base.length && id.indexOf(base + '-') === 0){
+      n = parseInt(id.slice(base.length + 1), 10) || 1;
+    }
+    if(n > top) top = n;
+    if(num(x.lineNo) > top) top = num(x.lineNo);
+  });
+  return top || (ls || []).length;
 }
 /* Payments the quick screen itself took, as opposed to money added later on
    the order page. Records written before this build have no marker, so a
@@ -3203,6 +3328,68 @@ function applyQuickMode1(label){
     if(found) $('qOther').value = label;
   }
 }
+/* ---------- a customer comes back for something they forgot ----------
+   The garment joins the order that is already saved: same slip, same order
+   number, next garment suffix. Nothing already on the order is rewritten — the
+   existing records keep their IDs, their order numbers and their payments, so
+   printed labels and rows already on the sheet stay valid. */
+function addToOrder(tid){
+  var ls = ticketLines(tid);
+  if(!ls.length){ toast('That order is no longer here'); return; }
+  if(ls.some(function(x){ return x.voided; })){
+    toast('That order was cancelled'); return;
+  }
+  if(quickEditTid){ toast('Finish or cancel the correction first'); return; }
+  if(quickHasWork()){
+    ask({ title:'Clear the slip on screen first?',
+          body:'Anything typed will be lost.',
+          kind:'confirm', okLabel:'Clear it', tone:'danger' }, function(yes){
+      if(yes){ resetQuick(); addToOrder(tid); }
+    });
+    return;
+  }
+
+  hideOrderSaved();
+  go('quick');
+  window.scrollTo(0,0);
+  resetQuick();
+  quickAddTid = tid;
+
+  var o = ls[0];
+  if($('qNum'))   $('qNum').value   = String(o.paperNo || o.number || '');
+  if($('qDate'))  $('qDate').value  = o.slipDate || o.dateOrdered || ymd(today());
+  if($('qPhone')) $('qPhone').value = o.phoneNumber || '';
+
+  fillSelect('qSchool', DB.schools, o.companySchool || '');
+  if($('qSchool')) $('qSchool').value = o.companySchool || '';
+  qSchoolChange(false);
+  if($('qDept')) $('qDept').value = o.department || '';
+  qDeptChange();
+  if($('qGender')) $('qGender').value = o.gender || '';
+
+  setQuickMode('Cash');
+  renderQuickEditBar();
+  quickPreview(); quickBalance();
+  toast('Adding to ' + ticketOrderNo(ls));
+  if($('qProduct')) $('qProduct').focus();
+}
+function cancelQuickAdd(){
+  if(!quickAddTid) return;
+  var tid = quickAddTid;
+  var finish = function(){
+    resetQuick();
+    toast('Nothing added');
+    var ls = ticketLines(tid);
+    if(ls.length) openOrder(ls[0].id);
+  };
+  if(!quickHasWork()) return finish();
+  ask({ title:'Stop adding to this order?',
+        body:'The garment you were entering will be lost.',
+        kind:'confirm', okLabel:'Stop', tone:'danger' }, function(yes){
+    if(yes) finish();
+  });
+}
+
 function editQuickTicket(tid){
   var ls = ticketLines(tid);
   if(!ls.length){ toast('That slip is no longer here'); return; }
@@ -3280,11 +3467,124 @@ function editQuickTicket(tid){
   toast('Correcting slip ' + o.orderId);
   if($('qNum')) $('qNum').focus();
 }
+function cancelQuickWork(){
+  if(quickAddTid) return cancelQuickAdd();
+  return cancelQuickEdit();
+}
 function cancelQuickEdit(){
   if(!quickEditTid) return;
-  if(!confirm('Leave this slip as it was?\n\nNothing you have changed here will be kept.')) return;
+  ask({ title:'Leave this slip as it was?',
+        body:'Nothing you have changed here will be kept.',
+        kind:'confirm', okLabel:'Leave it', tone:'danger' }, function(yes){
+    if(!yes) return;
+    resetQuick();
+    toast('Left unchanged');
+  });
+}
+
+/* Writes the forgotten garment onto an order that already exists. The money on
+   screen belongs to this transaction only; the order's own totals are worked
+   out again from every garment on it once the new one is in. */
+function saveAddition(paper, phone, all, total, tenders, now, cash, change){
+  var tid = quickAddTid;
+  var ls = ticketLines(tid);
+  if(!ls.length){ toast('That order is no longer here'); resetQuick(); return; }
+
+  var base = ticketOrderNo(ls);
+  var start = ticketMaxLine(ls);
+  var head = ls[0];
+  var school = $('qSchool').value, dept = $('qDept').value;
+  var gender = $('qGender') ? $('qGender').value : '';
+  var made = [];
+
+  all.forEach(function(g, idx){
+    var rec = {
+      id: 'o' + Date.now() + idx + Math.floor(Math.random()*1000),
+      orderId: base + '-' + (start + idx + 1),
+      paperNo: parseInt(paper,10), slipDate: head.slipDate || head.dateOrdered,
+      ticketId: tid, lineNo: start + idx + 1, lineCount: ls.length + all.length,
+      quick: true,
+      needsDetails: !(head.lastName || head.firstName),
+      lastName: head.lastName || '', firstName: head.firstName || '',
+      phoneNumber: phone || head.phoneNumber || '', emailAddress: head.emailAddress || '',
+      companySchool: school, department: dept, gender: gender,
+      dateOrdered: head.dateOrdered || quickDate(), dateDue: head.dateDue || '',
+      notes: '',
+      productName: g.productName, sizing: g.sizing, set: g.set,
+      sizeUpper: g.sizeUpper || '', sizeLower: g.sizeLower || '', bigSize: !!g.bigSize,
+      sellingPrice: g.sellingPrice, orderTotal: g.orderTotal, meas: {},
+      addons: g.addons || [],
+      block: head.block || '', page: head.page || '',
+      number: String(parseInt(paper,10)), coder: currentUser(),
+      isReadyMade: false, completedStatus: '', completedTimestamp: '',
+      isReceived: false, receivedTimestamp: '',
+      amountPaid: 0, balance: num(g.orderTotal), paid: 'No',
+      payments: [], paymentMode: '', log: [],
+      addedLater: true, addedAt: now,
+      createdAt: now, updatedAt: now
+    };
+    DB.orders.push(rec);
+    made.push(rec);
+  });
+
+  // the tender handed over now settles the new garments first
+  var left = total;
+  tenders.forEach(function(t){
+    var apply = Math.min(t.amt, left);
+    if(apply > 0.004){ allocatePayment(made, apply, t.mode, now); left -= apply; }
+  });
+  made.forEach(function(r){
+    (r.payments || []).forEach(function(p){ p.qEntry = true; });
+  });
+  if(cash > 0){ made[0].cashGiven = cash; made[0].changeGiven = change; }
+
+  if(quickProof){
+    DB.proofs = DB.proofs || {};
+    DB.proofs[made[0].id] = quickProof;
+    made.forEach(function(r){ r.hasProof = true; });
+    if(quickProofFile && DB.saveProofPhotos !== false){
+      saveImageFile(proofFileName(made[0].orderId), quickProofFile, true);
+      made[0].proofFile = proofFileName(made[0].orderId);
+    }
+  }
+
+  // every garment on the slip now agrees on how many there are
+  var whole = ticketLines(tid);
+  whole.forEach(function(x){ x.lineCount = whole.length; x.updatedAt = now; });
+
+  var payWords = tenders.length
+    ? tenders.map(function(t){ return peso(t.amt) + ' by ' + t.mode; }).join(' and ')
+    : 'nothing paid on it yet';
+  var what = all.map(function(g){ return g.productName; }).join(', ');
+  var tt = ticketTotals(tid);
+
+  made.forEach(function(rec){
+    logEvent(rec, 'Added to order ' + base + ' after it was saved — ' + rec.productName +
+      ', ' + peso(rec.orderTotal) + ', ' + payWords +
+      (change > 0 ? ' (change ' + peso(change) + ')' : '') + '.', true);
+  });
+  ls.forEach(function(rec){
+    logEvent(rec, what + ' added to this order later (' + peso(total) + '). ' +
+      'Order now ' + peso(tt.total) + ', paid ' + peso(tt.paid) +
+      ', balance ' + peso(tt.balance) + '.', true);
+  });
+
+  save(); queueSync();
+  updateQuickBadge();
+  toast(change > 0
+    ? 'Added to ' + base + ' · change ' + peso(change)
+    : 'Added to ' + base);
+
   resetQuick();
-  toast('Left unchanged');
+  fillSelect('qSchool', DB.schools, school);
+  qSchoolChange(true);
+  if($('qGender')) $('qGender').value = gender;
+  showOrderSaved(made, Math.min(total, tenderTotal(tenders)), {
+    quick: true, change: change, added: true, tenders: tenders, ticket: tt, base: base
+  });
+}
+function tenderTotal(tenders){
+  return (tenders || []).reduce(function(a,t){ return a + num(t.amt); }, 0);
 }
 
 function quickHasWork(){
@@ -3293,13 +3593,20 @@ function quickHasWork(){
   return !qLineEmpty(qCurrentLine());
 }
 function clearQuick(){
+  if(quickAddTid){ cancelQuickAdd(); return; }
   if(quickEditTid){ cancelQuickEdit(); return; }
-  if(quickHasWork() && !confirm('Clear this slip?\n\nAnything typed will be lost.')) return;
-  resetQuick();
-  toast('Cleared');
+  if(!quickHasWork()){ resetQuick(); toast('Cleared'); return; }
+  ask({ title:'Clear this slip?',
+        body:'Anything typed will be lost.',
+        kind:'confirm', okLabel:'Clear it', tone:'danger' }, function(yes){
+    if(!yes) return;
+    resetQuick();
+    toast('Cleared');
+  });
 }
 function resetQuick(){
-  quickEditTid = null; quickKeptPaid = 0; renderQuickEditBar();
+  quickEditTid = null; quickAddTid = null; quickKeptPaid = 0; renderQuickEditBar();
+  if($('qDate')) $('qDate').value = ymd(today());   // next slip is today's
   if($('qSplitPayWrap')) $('qSplitPayWrap').style.display = 'none';
   if($('qSplitPayBtn')) $('qSplitPayBtn').textContent = '+ Part cash, part something else';
   ['qNum','qPhone','qPrice','qTotal','qCash','qCash2'].forEach(function(k){
@@ -3326,9 +3633,10 @@ function saveQuickOrder(){
   }
   var id = quickOrderId(paper, quickDate());
 
-  // when correcting, the slip must not collide with itself
+  // adding to an order that already exists never collides with anything
   var mine = {};
   if(quickEditTid) ticketLines(quickEditTid).forEach(function(x){ mine[x.id] = 1; });
+  if(quickAddTid)  ticketLines(quickAddTid).forEach(function(x){ mine[x.id] = 1; });
   var clash = DB.orders.filter(function(o){
     return o.orderId === id && !o.voided && !mine[o.id];
   })[0] || null;
@@ -3367,6 +3675,9 @@ function saveQuickOrder(){
   var gender = $('qGender') ? $('qGender').value : '';
 
   // ----- correcting: keep the old shell, take back anything added later -----
+  // ---------- adding to an order already saved ----------
+  if(quickAddTid){ return saveAddition(paper, phone, all, total, tenders, now, cash, change); }
+
   var editing = !!quickEditTid;
   var old = editing ? ticketLines(quickEditTid) : [];
   var keepLater = [], keptSum = 0;   // part-payments recorded after the slip was taken
@@ -3616,12 +3927,51 @@ function reportGroupKey(o){
    tailor. What the cashier counts is then compared against what the book
    says should be there. */
 function isCashMode(m){ return /cash/i.test(m) && !/gcash/i.test(m); }
+function isGCashMode(m){ return /gcash/i.test(String(m||'')); }
+function gcashTakings(t){
+  return Object.keys(t.byMode).reduce(function(a, m){
+    return a + (isGCashMode(m) ? num(t.byMode[m]) : 0);
+  }, 0);
+}
+/* ---------- item 20: has the transfer actually landed? ----------
+   A GCash payment is money the shop has been told about, not money it has
+   seen. Ticking it off is what turns one into the other, and an unticked
+   transfer is the first thing to look at when the day does not balance. */
+function setPaymentConfirmed(orderId, i, on){
+  var o = DB.orders.filter(function(x){ return x.id === orderId; })[0];
+  if(!o || !o.payments || !o.payments[i]) return;
+  var p = o.payments[i];
+  if(on){
+    p.confirmed = true; p.confirmedAt = stamp(); p.confirmedBy = currentUser();
+  } else {
+    delete p.confirmed; delete p.confirmedAt; delete p.confirmedBy;
+  }
+  o.updatedAt = stamp();
+  logEvent(o, (on ? 'GCash payment of ' + peso(p.amt) + ' confirmed received'
+                  : 'GCash payment of ' + peso(p.amt) + ' marked NOT confirmed'), true);
+  save(); queueSync(); openOrder(orderId);
+  toast(on ? 'Marked as received' : 'Marked as not yet confirmed');
+}
+/* Every GCash payment in a set of orders that nobody has ticked off yet. */
+function unconfirmedGCash(list){
+  var out = [];
+  (list || []).forEach(function(o){
+    if(o.voided) return;
+    (o.payments || []).forEach(function(p){
+      if(isGCashMode(p.mode) && !p.confirmed){
+        out.push({ order:o, amt:num(p.amt), at:p.at });
+      }
+    });
+  });
+  return out;
+}
 function cashTakings(t){
   return Object.keys(t.byMode).reduce(function(a, m){
     return a + (isCashMode(m) ? num(t.byMode[m]) : 0);
   }, 0);
 }
-var BLANK_CASHUP = { float:0, deductions:[], counted:null, closedAt:null, closedBy:'' };
+var BLANK_CASHUP = { float:0, deductions:[], counted:null, gcashCounted:null,
+                     closedAt:null, closedBy:'' };
 function cashupGet(key){
   return (DB.cashups && DB.cashups[key]) || Object.assign({}, BLANK_CASHUP, {deductions:[]});
 }
@@ -3636,8 +3986,13 @@ function cashupTotals(key, t){
   var takings = cashTakings(t);
   var expected = num(c.float) + takings - ded;
   var counted = (c.counted === null || c.counted === '') ? null : num(c.counted);
+  var gExpected = gcashTakings(t);
+  var gCounted = (c.gcashCounted === null || c.gcashCounted === undefined || c.gcashCounted === '')
+                 ? null : num(c.gcashCounted);
   return { c:c, ded:ded, takings:takings, expected:expected, counted:counted,
-           diff: counted === null ? null : counted - expected };
+           diff: counted === null ? null : counted - expected,
+           gExpected: gExpected, gCounted: gCounted,
+           gDiff: gCounted === null ? null : gCounted - gExpected };
 }
 function setCashBeginning(key, v){
   cashupEdit(key).float = num(v); save(); renderReport();
@@ -3646,6 +4001,87 @@ function setCashCounted(key, v){
   var c = cashupEdit(key);
   c.counted = String(v).trim() === '' ? null : num(v);
   save(); renderReport();
+}
+function setGcashCounted(key, v){
+  var c = cashupEdit(key);
+  c.gcashCounted = String(v).trim() === '' ? null : num(v);
+  save(); renderReport();
+}
+
+/* ---------- item 18: why does it not balance? ----------
+   Rather than only reporting a number, look for the things that actually cause
+   a gap in this shop and name them, worst first. */
+function cashupAnalysis(key, t, x){
+  var list = reportRows();
+  var notes = [];
+  var money = function(v){ return peso(Math.abs(v)); };
+
+  // --- GCash side ---
+  if(x.gCounted !== null && Math.abs(x.gDiff) > 0.005){
+    var un = unconfirmedGCash(list);
+    var unTotal = un.reduce(function(a,u){ return a + u.amt; }, 0);
+    if(x.gDiff < 0 && unTotal > 0.005){
+      notes.push({ tone:'bad',
+        head: money(x.gDiff) + ' less GCash than the book says',
+        body: un.length + ' GCash payment' + (un.length===1?'':'s') + ' worth ' + peso(unTotal) +
+              ' have not been ticked as received. That is the most likely cause — open each order and check the app.',
+        act: 'unconfirmed' });
+    } else if(x.gDiff < 0){
+      notes.push({ tone:'bad',
+        head: money(x.gDiff) + ' less GCash than the book says',
+        body: 'Every GCash payment is already ticked as received, so check for a transfer that was reversed, '+
+              'or one recorded against the wrong day.' });
+    } else {
+      notes.push({ tone:'warn',
+        head: money(x.gDiff) + ' more GCash than the book says',
+        body: 'Something came in that was not written on a slip — a payment for an older order, '+
+              'or one entered on another tablet and not yet synced.' });
+    }
+  }
+
+  // --- cash side ---
+  if(x.counted !== null && Math.abs(x.diff) > 0.005){
+    var changeGiven = 0, mixed = 0;
+    list.forEach(function(o){
+      if(o.voided) return;
+      changeGiven += num(o.changeGiven);
+      var modes = {};
+      (o.payments||[]).forEach(function(p){ modes[p.mode||''] = 1; });
+      if(Object.keys(modes).length > 1) mixed++;
+    });
+    if(x.diff < 0){
+      notes.push({ tone:'bad',
+        head: money(x.diff) + ' short in the drawer',
+        body: 'Nothing was taken out of the drawer that was not written down as a deduction' +
+              (x.ded > 0 ? ' (' + peso(x.ded) + ' recorded so far)' : '') + '? ' +
+              (changeGiven > 0 ? peso(changeGiven) + ' of change was handed over today — a miscount there shows up here. ' : '') +
+              'Recount the drawer before closing.' });
+    } else {
+      notes.push({ tone:'warn',
+        head: money(x.diff) + ' over in the drawer',
+        body: 'Usually a payment taken but not entered, or a slip entered as GCash that was really cash' +
+              (mixed ? '. ' + mixed + ' order(s) today were paid with two methods, which is where that most often happens.' : '.') });
+    }
+  }
+
+  // --- things that make the book itself wrong ---
+  if(t.needsDetails){
+    notes.push({ tone:'warn', head: t.needsDetails + ' slip(s) still have no customer details',
+      body:'They count in the money, but you cannot chase anyone for a balance on them yet.' });
+  }
+  if(t.corrected){
+    notes.push({ tone:'warn', head: t.corrected + ' order(s) were corrected after entry',
+      body:'If a correction changed an amount after the money was taken, the drawer and the book will differ.' });
+  }
+  if(t.voided){
+    notes.push({ tone:'warn', head: t.voided + ' cancelled order(s) excluded',
+      body:'If cash was already taken on a cancelled order it must be refunded, or recorded as a deduction.' });
+  }
+  if(!notes.length && x.counted !== null && x.gCounted !== null){
+    notes.push({ tone:'ok', head:'Everything balances',
+      body:'Cash and GCash both match the book for ' + rangeLabel() + '.' });
+  }
+  return notes;
 }
 function addCashDeduction(key){
   var nameEl = $('dedName'), amtEl = $('dedAmt');
@@ -3738,6 +4174,20 @@ function cashupPanel(t){
       'placeholder="count it" onchange="setCashCounted(\''+key+'\',this.value)"'+ro+'></span></div>'+
     variance+
 
+    // ---- item 18: the GCash side of the day ----
+    '<hr class="rule">'+
+    '<div class="kv"><span class="k">GCash the book says</span>'+
+      '<span class="v mono"><b>'+peso(x.gExpected)+'</b></span></div>'+
+    '<div class="kv"><span class="k">GCash counted in the app</span><span class="v">'+
+      '<input type="text" inputmode="decimal" value="'+(x.gCounted===null?'':x.gCounted.toFixed(2))+'" '+
+      'placeholder="check the app" onchange="setGcashCounted(\''+key+'\',this.value)"'+ro+'></span></div>'+
+    (x.gCounted === null ? '' :
+      '<div class="kv variance '+(Math.abs(x.gDiff)>=0.005?'off':'ok')+'">'+
+      '<span class="k"><b>'+(Math.abs(x.gDiff)<0.005 ? 'GCash matches'
+        : (x.gDiff>0 ? 'GCash over by ' : 'GCash short by ') + peso(Math.abs(x.gDiff)))+'</b></span>'+
+      '<span class="v"></span></div>')+
+    cashupNotesHTML(key, t, x)+
+
     (locked
       ? '<div class="sealed">Closed '+stampNice(x.c.closedAt)+
         (x.c.closedBy ? ' by '+esc(x.c.closedBy) : '')+'</div>'+
@@ -3746,6 +4196,27 @@ function cashupPanel(t){
       : '<div style="margin-top:12px"><button type="button" class="btn btn-primary" '+
         'onclick="closeCashup(\''+key+'\')">Close the day</button></div>')+
   '</div>';
+}
+/* The written-out explanation under the count. */
+function cashupNotesHTML(key, t, x){
+  if(x.counted === null && x.gCounted === null){
+    return '<p class="sub" style="margin:10px 0 0">Enter both counts to see where any difference comes from.</p>';
+  }
+  var notes = cashupAnalysis(key, t, x);
+  if(!notes.length) return '';
+  var un = unconfirmedGCash(reportRows());
+  return '<div class="cashnotes">'+
+    '<p class="eyebrow" style="margin-top:14px">What the difference looks like</p>'+
+    notes.map(function(n){
+      return '<div class="cnote '+esc(n.tone)+'">'+
+        '<div class="ch">'+esc(n.head)+'</div>'+
+        '<div class="cb">'+esc(n.body)+'</div>'+
+        (n.act === 'unconfirmed' && un.length
+          ? '<div class="cb"><b>'+un.map(function(u){
+              return esc(u.order.orderId)+' '+peso(u.amt); }).join(' · ')+'</b></div>'
+          : '')+
+      '</div>';
+    }).join('')+'</div>';
 }
 function reportTotals(list){
   var t = { count:0, voided:0, sales:0, collected:0, outstanding:0,
@@ -3768,6 +4239,7 @@ function reportTotals(list){
   return t;
 }
 function renderReport(){
+  try{ renderOwing(); }catch(e){}
   if(!$('reportContent')) return;
   fillReportFilters();
   var list = reportRows(), t = reportTotals(list);
@@ -3854,9 +4326,44 @@ function dayBreakdown(list){
 /* The workroom's sheet: every garment on one A4 page with its full tape, so a
    cutter can work from paper without the tablet. Blank cells are left blank on
    purpose — a guessed measurement is worse than an obviously missing one. */
-function printMeasureSheet(){
+/* Does this garment actually have anything written on it? */
+function hasMeasurements(o){
+  return MEAS.some(function(m){
+    return o.meas && String(o.meas[m.k] || '').trim() !== '';
+  });
+}
+/* Paid state belongs to the ORDER, not to one garment on it. */
+function orderPaidText(o){
+  var ls = o.ticketId ? ticketLines(o.ticketId) : [o];
+  var bal = ls.reduce(function(a,x){ return a + num(x.balance); }, 0);
+  return bal > 0.004 ? 'Bal ' + peso(bal) : 'PAID';
+}
+/* What the measurement prints work from: the period, narrowed to one order
+   number if asked, and by default only garments that have measurements. */
+function measureRows(){
   var list = reportRows().filter(function(o){ return !o.voided; });
-  if(!list.length){ toast('Nothing to print for that period'); return; }
+  var no = String(($('rOrderNo') && $('rOrderNo').value) || '').trim().toLowerCase();
+  if(no){
+    var digits = no.replace(/\D/g,'');
+    list = list.filter(function(o){
+      if(String(o.orderId||'').toLowerCase().indexOf(no) > -1) return true;
+      return digits !== '' && String(parseInt(o.paperNo,10)) === String(parseInt(digits,10));
+    });
+  }
+  if(!($('rMeasOnly') && $('rMeasOnly').value === '0')){
+    list = list.filter(hasMeasurements);
+  }
+  return list;
+}
+function measureEmptyToast(){
+  var no = ($('rOrderNo') && $('rOrderNo').value || '').trim();
+  toast(no ? 'Nothing to print for order ' + no
+           : 'No garments with measurements in that period');
+}
+
+function printMeasureSheet(){
+  var list = measureRows();
+  if(!list.length){ measureEmptyToast(); return; }
 
   var groupBy = $('rGroup') ? $('rGroup').value : '';
   var row = function(o){
@@ -3870,7 +4377,8 @@ function printMeasureSheet(){
       '<td>'+esc(o.set||'1')+'</td>'+
       MEAS.map(function(m){
         return '<td class="c">'+esc((o.meas||{})[m.k]||'')+'</td>'; }).join('')+
-      '<td>'+(o.dateDue ? nice(o.dateDue) : '')+'</td></tr>';
+      '<td>'+(o.dateDue ? nice(o.dateDue) : '')+'</td>'+
+      '<td class="c">'+esc(orderPaidText(o))+'</td></tr>';
   };
   var body;
   if(groupBy){
@@ -3882,7 +4390,7 @@ function printMeasureSheet(){
     });
     order.sort();
     body = order.map(function(k){
-      return '<tr class="grp"><td colspan="'+(MEAS.length+6)+'">'+
+      return '<tr class="grp"><td colspan="'+(MEAS.length+7)+'">'+
              esc(k)+' — '+groups[k].length+' garment(s)</td></tr>' +
              groups[k].map(row).join('');
     }).join('');
@@ -3897,12 +4405,12 @@ function printMeasureSheet(){
     '<table class="rtab mtab"><thead><tr>'+
       '<th>No.</th><th>Customer</th><th>Product</th><th>Size</th><th>Pcs</th>'+
       MEAS.map(function(m){ return '<th class="c">'+m.label+'</th>'; }).join('')+
-      '<th>Due</th></tr></thead><tbody>'+
+      '<th>Due</th><th class="c">Paid</th></tr></thead><tbody>'+
     body +
     '</tbody></table>'+
     '<p style="font-size:8px;margin-top:8px">'+
       MEAS.map(function(m){ return m.label+' = '+m.hint; }).join(' · ')+'</p>'+
-    '<p style="font-size:9px;margin-top:6px">Shaded rows have no measurements recorded yet.</p>';
+    '<p style="font-size:9px;margin-top:6px">Paid column shows the whole order: PAID, or the balance still owing.</p>';
 
   setPrintStyle('report');
   var area = $('printArea');
@@ -3917,11 +4425,47 @@ function printMeasureSheet(){
 
 /* One narrow slip per garment, to pin to the cloth as it goes through. */
 function printMeasureSlips(){
-  var list = reportRows().filter(function(o){ return !o.voided; });
-  if(!list.length){ toast('Nothing to print for that period'); return; }
+  var list = measureRows();
+  if(!list.length){ measureEmptyToast(); return; }
 
-  var h = list.map(function(o){
-    var mm = MEAS.filter(function(m){ return o.meas && o.meas[m.k]; });
+  var h = list.map(function(o){ return measureSlipHTML(o, false); }).join('');
+
+  setPrintStyle('pos');
+  var area = $('printArea');
+  area.className = 'pos-multi';
+  area.innerHTML = h;
+  printNow();
+  toast('Printing ' + list.length + ' cutting slip(s)');
+}
+
+/* ---------- item 15: one order's measurements on the 58mm roll ----------
+   Same slip the cutting table gets, with the order's scan code on it so it can
+   be matched back at hand-off. */
+function printOrderMeasureSlip(id){
+  var o = DB.orders.filter(function(x){ return x.id === id; })[0];
+  if(!o){ toast('That order is no longer here'); return; }
+  var ls = o.ticketId ? ticketLines(o.ticketId) : [o];
+  var withMeas = ls.filter(hasMeasurements);
+  if(!withMeas.length){
+    toast('No measurements recorded on this order yet');
+    return;
+  }
+  var h = withMeas.map(function(x, i){
+    return measureSlipHTML(x, i === withMeas.length - 1);
+  }).join('');
+  setPrintStyle('pos');
+  var area = $('printArea');
+  area.className = 'pos-multi';
+  area.innerHTML = h;
+  printNow();
+  toast(withMeas.length > 1
+    ? 'Printing ' + withMeas.length + ' measurement slips'
+    : 'Printing the measurement slip');
+}
+
+function measureSlipHTML(o, withCode){
+  var oldBody = function(o){
+    var mm = MEAS.filter(function(m){ return o.meas && String(o.meas[m.k]||'').trim() !== ''; });
     return '<div class="pos" style="page-break-after:always">'+
       '<div class="shop">BELLE\'S DRESS SHOP</div>'+
       '<div class="tag">CUTTING SLIP</div>'+
@@ -3939,54 +4483,97 @@ function printMeasureSlips(){
             return '<span>'+m.label+' '+esc(o.meas[m.k])+'</span>'; }).join('') + '</div>'
         : '<div class="foot">NO MEASUREMENTS RECORDED</div>')+
       (o.notes ? '<div class="rule"></div><div class="wrap2">'+esc(o.notes)+'</div>' : '')+
+      posLine('Order', orderPaidText(o)) +
+      (withCode
+        ? '<div class="qrbox"><img src="'+orderQRUrl(o, 6)+'" alt="Order code">'+
+          '<div class="qrid">'+esc(o.orderId)+'</div>'+
+          '<div class="qrhint">Scan at pick-up</div></div>'
+        : '')+
       '<div class="foot">Cut by ________  Checked ________</div>'+
     '</div>';
-  }).join('');
-
-  setPrintStyle('pos');
-  var area = $('printArea');
-  area.className = 'pos-multi';
-  area.innerHTML = h;
-  printNow();
-  setTimeout(function(){ area.className = 'pos'; }, 800);
-  toast('Printing ' + list.length + ' cutting slip(s)');
+  };
+  return oldBody(o);
 }
 
 /* Narrow slip for a quick count against the cash drawer. */
 function printAuditSlip(){
   var list = reportRows(), t = reportTotals(list);
   if(!list.length){ toast('Nothing to print for that period'); return; }
-  var h = '<div class="pos">'+
-    '<div class="shop">BELLE\'S DRESS SHOP</div>'+
-    '<div class="tag">DAY AUDIT</div>'+
-    '<div class="rule"></div>'+
-    posLine('Date', rangeLabel()) +
-    (($('rSchool')&&$('rSchool').value) ? posLine('School', $('rSchool').value) : '') +
-    (($('rProduct')&&$('rProduct').value) ? posLine('Product', $('rProduct').value) : '') +
-    posLine('Printed', stampNice(stamp())) +
-    (currentUser() ? posLine('By', currentUser()) : '') +
-    '<div class="rule"></div>'+
-    list.map(function(o){
-      return posLine(esc(o.orderId) + (o.voided ? ' (VOID)' : '') + (o.corrected ? ' *' : ''),
-                     peso(o.voided ? 0 : o.amountPaid));
-    }).join('')+
-    '<div class="rule solid"></div>'+
-    posLine('Transactions', String(t.count)) +
-    posLine('Sales booked', peso(t.sales)) +
-    posLine('COLLECTED', peso(t.collected), true) +
-    '<div class="rule"></div>'+
-    Object.keys(t.byMode).sort().map(function(m){
-      return posLine(m, peso(t.byMode[m]));
-    }).join('')+
-    (t.outstanding > 0 ? '<div class="rule"></div>' + posLine('Still owed', peso(t.outstanding)) : '')+
-    (t.corrected ? '<div class="foot">* corrected after entry</div>' : '')+
-    (t.voided ? '<div class="foot">'+t.voided+' cancelled, excluded</div>' : '')+
-    '<div class="foot">Counted by ____________</div>'+
-    '</div>';
+
+  // One line per ORDER, never per garment. The old slip printed all 385
+  // garment records onto a 58mm roll, which Android's print preview cannot
+  // paginate — that is why nothing came out.
+  var groups = ticketGroups(list, false);
+  var detail = ($('rAuditDetail') && $('rAuditDetail').value) || 'totals';
+  var onlyMode = ($('rAuditMode') && $('rAuditMode').value) || '';
+
+  var shown = [];
+  if(detail === 'all')    shown = groups.filter(function(g){ return !g.voided; });
+  if(detail === 'unpaid') shown = groups.filter(function(g){ return !g.voided && g.balance > 0.004; });
+  if(onlyMode){
+    shown = shown.filter(function(g){
+      return g.lines.some(function(o){
+        return (o.payments||[]).some(function(p){ return (p.mode||'') === onlyMode; });
+      });
+    });
+  }
+  var CAP = 120, over = Math.max(0, shown.length - CAP);
+  if(over) shown = shown.slice(0, CAP);
+
+  var modes = Object.keys(t.byMode).sort().filter(function(m){
+    return !onlyMode || m === onlyMode;
+  });
+
+  var h = '';
+  h += '<div class="c shop">BELLE\'S DRESS SHOP</div>';
+  h += '<div class="c tag">DAY AUDIT</div>';
+  h += '<div class="rule"></div>';
+  h += posLine('Period', rangeLabel());
+  if($('rSchool') && $('rSchool').value)  h += posLine('School', $('rSchool').value);
+  if($('rProduct') && $('rProduct').value) h += posLine('Product', $('rProduct').value);
+  h += posLine('Printed', stampNice(stamp()));
+  if(currentUser()) h += posLine('By', currentUser());
+
+  h += '<div class="rule solid"></div>';
+  h += posLine('Orders', String(groups.length));
+  h += posLine('Garments', String(t.count));
+  h += posLine('Sales booked', peso(t.sales));
+  h += posLine('COLLECTED', peso(t.collected), true);
+
+  if(modes.length){
+    h += '<div class="rule"></div>';
+    modes.forEach(function(m){ h += posLine(m, peso(t.byMode[m])); });
+  }
+  if(t.outstanding > 0){
+    h += '<div class="rule"></div>';
+    h += posLine('Still owed', peso(t.outstanding));
+  }
+
+  if(shown.length){
+    h += '<div class="rule solid"></div>';
+    h += '<div class="c tag">' +
+         (detail === 'unpaid' ? 'ORDERS STILL OWING' : 'ORDERS') + '</div>';
+    h += '<div class="rule"></div>';
+    shown.forEach(function(g){
+      var mark = (g.corrected ? ' *' : '');
+      h += posLine(esc(g.orderNo) + mark,
+                   peso(detail === 'unpaid' ? g.balance : g.paid));
+    });
+    if(over) h += '<div class="foot">' + over + ' more not printed — use the A4 report</div>';
+  }
+
+  h += '<div class="rule solid"></div>';
+  h += '<div class="ln"><span>Cash counted</span><span>________</span></div>';
+  h += '<div class="ln"><span>GCash counted</span><span>________</span></div>';
+  h += '<div class="ln"><span>Difference</span><span>________</span></div>';
+  if(t.corrected) h += '<div class="foot">* corrected after entry</div>';
+  if(t.voided)    h += '<div class="foot">' + t.voided + ' cancelled, excluded</div>';
+  h += '<div class="foot">Counted by ____________</div>';
+
   setPrintStyle('pos');
   var area = $('printArea');
   area.className = 'pos';
-  area.innerHTML = h;
+  area.innerHTML = h;          // no second .pos wrapper — printOrder does the same
   printNow();
 }
 
@@ -4334,10 +4921,12 @@ function printQRLabel(id){
   var why = labelBlockedReason(o);
   if(why){
     toast('Cannot print a label — ' + why);
-    if(confirm('Cannot print a label yet:\n\n' + why.charAt(0).toUpperCase() + why.slice(1) +
-               '.\n\nOpen it now to fill in the missing details?')){
-      editOrder(id);
-    }
+    ask({ title:'Cannot print a label yet',
+          body: why.charAt(0).toUpperCase() + why.slice(1) +
+                '. Open the order now to fill in the missing details?',
+          kind:'confirm', okLabel:'Open the order' }, function(yes){
+      if(yes) editOrder(id);
+    });
     return;
   }
   setPrintStyle(DB.paper === 'A4' ? 'report' : 'label');
@@ -4498,9 +5087,18 @@ function markDispatched(id){
   var ls = ticketLines(o.ticketId); if(!ls.length) ls = [o];
   var tt = ticketTotals(o.ticketId);
   var bal = (o.lineCount>1 ? tt.balance : num(o.balance));
-  var msg = 'Hand this order to the customer and mark it collected?';
-  if(bal > 0) msg = 'This order still has a balance of ' + peso(bal) + '.\n\n' + msg;
-  if(!confirm(msg)) return;
+  ask({ title:'Mark this order collected?',
+        body:(bal > 0 ? 'This order still has a balance of ' + peso(bal) + '. ' : '') +
+             'Hand it to the customer and mark it collected.',
+        kind:'confirm', okLabel:'Mark collected',
+        tone:(bal > 0 ? 'danger' : '') }, function(yes){
+    if(yes) markCollectedNow(id, bal);
+  });
+}
+function markCollectedNow(id, bal){
+  var o = DB.orders.filter(function(x){ return x.id === id; })[0];
+  if(!o) return;
+  var ls = o.ticketId ? ticketLines(o.ticketId) : [o];
   var at = stamp();
   ls.forEach(function(x){
     if(x.isReceived) return;
@@ -5056,11 +5654,17 @@ function addTenderRow(){
 }
 function removeTenderRow(i){
   var rows = readTenders();
-  if(num(rows[i] && rows[i].amt) > 0 &&
-     !confirm('Remove the ' + peso(rows[i].amt) + ' ' + rows[i].mode + ' payment line?')) return;
-  var list = rows.filter(function(_, j){ return j !== i; });
-  renderTenders(list.map(function(t){ return {amt: t.amt || '', mode: t.mode}; }));
-  recalc();
+  var drop = function(){
+    var list = rows.filter(function(_, j){ return j !== i; });
+    renderTenders(list.map(function(t){ return {amt: t.amt || '', mode: t.mode}; }));
+    recalc();
+  };
+  if(!(num(rows[i] && rows[i].amt) > 0)) return drop();
+  ask({ title:'Remove this payment line?',
+        body:peso(rows[i].amt) + ' by ' + rows[i].mode + '.',
+        kind:'confirm', okLabel:'Remove it', tone:'danger' }, function(yes){
+    if(yes) drop();
+  });
 }
 function tenderTotal(){
   return readTenders().reduce(function(s,t){ return s + num(t.amt); }, 0);
@@ -5420,12 +6024,44 @@ function matches(o, filter, term){
   var hay = '';
   if(filter==='Last name') hay = o.lastName;
   else if(filter==='First name') hay = o.firstName;
-  else if(filter==='Order no.') hay = o.orderId;
+  else if(filter==='Order no.') hay = String(o.orderId||'') + ' ' + String(o.paperNo||'');
   else if(filter==='Phone') hay = o.phoneNumber;
   else if(filter==='School') hay = o.companySchool;
   else if(filter==='Product') hay = o.productName;
   else if(filter==='Date due') hay = o.dateDue;
   return String(hay||'').toLowerCase().indexOf(t) > -1;
+}
+
+/* One card per order, however many garments are on it. */
+function ticketStubHTML(g){
+  var pills = '';
+  if(g.balance > 0) pills += '<span class="pill due">'+peso(g.balance)+' due</span>';
+  else pills += '<span class="pill paid">Fully paid</span>';
+  if(g.needsDetails) pills += '<span class="pill due">Needs details</span>';
+  if(g.voided)    pills += '<span class="pill" style="background:#EEE;color:#666">Cancelled</span>';
+  if(g.corrected) pills += '<span class="pill due">Corrected</span>';
+  if(g.conflict)  pills += '<span class="pill due">Check — two tablets</span>';
+  if(g.received)  pills += '<span class="pill rcv">Picked up</span>';
+  else if(g.pieces > 0 && g.done >= g.pieces) pills += '<span class="pill wip">Ready</span>';
+  else pills += '<span class="pill wip">'+g.done+'/'+g.pieces+' done</span>';
+
+  var d = g.dateDue ? new Date(g.dateDue+'T00:00:00') : null;
+  var tag = d ? (d.getDate()+' '+d.toLocaleDateString('en-PH',{month:'short'})) : '—';
+  // order number leads (it is the tab on the left), then the last name, which
+  // is how a slip is looked up at the counter
+  var last = String(g.head.lastName||'').trim();
+  var firstN = String(g.head.firstName||'').trim();
+  var who = last ? (last + (firstN ? ', ' + firstN : '')) : firstN;
+
+  return '<div class="stub" onclick="openOrder(\''+g.head.id+'\')">'+
+    '<div class="tab"><div class="no">'+esc(g.orderNo)+'</div><div class="dt">'+esc(tag)+'</div></div>'+
+    '<div class="body">'+
+      '<div class="nm">'+(who ? esc(who) : '<span style="opacity:.55">Name to follow</span>')+'</div>'+
+      '<div class="meta">'+esc(g.products)+
+        (g.count > 1 ? ' · '+g.count+' garments' : '')+
+        (g.head.companySchool ? ' · '+esc(g.head.companySchool) : '')+'</div>'+
+      '<div class="foot">'+pills+'</div>'+
+    '</div></div>';
 }
 
 function stubHTML(o){
@@ -5495,7 +6131,23 @@ function fillInOrder(id){
     if($(first)) $(first).focus();
   }, 140);
 }
+/* Android decides which keyboard to raise from inputmode. Searching by order
+   number or phone should bring up the keypad, not the whole alphabet. */
+function syncSearchKeypad(){
+  var el = $('searchInput'), f = $('searchFilter') ? $('searchFilter').value : 'All';
+  if(!el) return;
+  var numeric = (f === 'Order no.' || f === 'Phone');
+  var want = numeric ? 'numeric' : 'text';
+  if(el.getAttribute('inputmode') === want) return;
+  el.setAttribute('inputmode', want);
+  el.placeholder = f === 'Phone' ? 'Phone number\u2026'
+    : (f === 'Order no.' ? 'Order number, e.g. 142'
+    : 'Search name, order no., phone, product\u2026');
+  // a keyboard already up will not change on its own
+  if(document.activeElement === el){ el.blur(); el.focus(); }
+}
 function renderFind(){
+  syncSearchKeypad();
   var filter = $('searchFilter').value, term = $('searchInput').value;
   var listOnly = ['Unpaid','Not yet done','Not picked up','Needs completing',
                   'Quick orders — fill in','Changed on two tablets'].indexOf(filter) > -1;
@@ -5506,8 +6158,10 @@ function renderFind(){
     return;
   }
   if(!listOnly && !term.trim()){
-    var recent = DB.orders.slice(-20).reverse();
-    $('findResults').innerHTML = '<div class="section-label">Recent orders · newest first</div>' + recent.map(stubHTML).join('');
+    // the last 20 orders, not the last 20 garments
+    var recent = ticketGroups(DB.orders.slice().reverse(), true).slice(0, 20);
+    $('findResults').innerHTML = '<div class="section-label">Recent orders · newest first</div>' +
+      recent.map(ticketStubHTML).join('');
     return;
   }
   var res = DB.orders.filter(function(o){ return matches(o, filter, term); }).reverse();
@@ -5515,8 +6169,10 @@ function renderFind(){
     $('findResults').innerHTML = renderFillList(res);
     return;
   }
-  $('findResults').innerHTML = res.length
-    ? '<div class="section-label">'+res.length+' found</div>' + res.map(stubHTML).join('')
+  var groups = ticketGroups(res, true);
+  $('findResults').innerHTML = groups.length
+    ? '<div class="section-label">'+groups.length+' order'+(groups.length===1?'':'s')+' found</div>' +
+      groups.map(ticketStubHTML).join('')
     : '<div class="empty"><div class="big">Nothing matched</div>Try a different filter or a shorter search.</div>';
 }
 $('searchInput').addEventListener('input', renderFind);
@@ -5858,9 +6514,19 @@ function openOrder(id){
   var measRows = MEAS.filter(function(m){ return o.meas && o.meas[m.k]; })
     .map(function(m){ return '<div class="m"><label>'+m.label+'</label><input type="text" value="'+esc(o.meas[m.k])+'" readonly><div class="hint">'+m.hint+'</div></div>'; }).join('');
 
-  var payLog = (o.payments||[]).map(function(p){
+  var payLog = (o.payments||[]).map(function(p, pi){
+    var gc = isGCashMode(p.mode);
+    var tick = gc
+      ? '<label class="paytick" title="Tick once the transfer shows in the GCash app">'+
+        '<input type="checkbox" onchange="setPaymentConfirmed(\''+o.id+'\','+pi+',this.checked)"'+
+        (p.confirmed ? ' checked' : '')+'> '+
+        (p.confirmed
+          ? '<span class="ok">received'+(p.confirmedBy ? ' · '+esc(p.confirmedBy) : '')+'</span>'
+          : '<span class="bad">not yet confirmed</span>')+
+        '</label>'
+      : '';
     return '<div class="kv"><span class="k">'+esc(stampNice(p.at))+(p.mode?' · '+esc(p.mode):'')+
-           '</span><span class="v mono">'+peso(p.amt)+'</span></div>';
+           tick+'</span><span class="v mono">'+peso(p.amt)+'</span></div>';
   }).join('') || '<div class="kv"><span class="k">No payments recorded</span><span class="v"></span></div>';
 
   var tt = ticketTotals(o.ticketId);
@@ -5966,6 +6632,10 @@ function openOrder(id){
     (o.quick && !o.voided && o.ticketId
       ? '<button class="btn btn-ghost btn-sm" onclick="editQuickTicket(\''+o.ticketId+'\')">Correct slip</button>'
       : '')+
+    (!o.voided && o.ticketId
+      ? '<button class="btn btn-ghost btn-sm" onclick="addToOrder(\''+o.ticketId+'\')">Add garment</button>'
+      : '')+
+    '<button class="btn btn-ghost btn-sm" onclick="printOrderMeasureSlip(\''+o.id+'\')">Measurement slip</button>'+
     '<button class="btn btn-ghost btn-sm" onclick="correctOrder(\''+o.id+'\')">Correct</button>'+
     (o.conflict ? '<button class="btn btn-ghost btn-sm" onclick="clearConflict(\''+o.id+'\')">Mark reviewed</button>' : '')+
     '<button class="btn btn-ghost btn-sm" onclick="toggleReceipt(\''+o.id+'\')">Send receipt</button>'+
@@ -6012,12 +6682,18 @@ function clearConflict(id){
 /* Leaving the edit form. Anything typed is thrown away, so it asks first. */
 function cancelEdit(){
   if(!$('editingId').value){ backToList(); return; }
-  if(editHasChanges() &&
-     !confirm('Leave without saving?\n\nThe changes you have typed will be lost.')) return;
-  var wasQuick = $('searchFilter') && $('searchFilter').value === 'Quick orders — fill in';
-  resetForm(true);
-  if(wasQuick){ go('find'); renderFind(); window.scrollTo(0,0); return; }
-  backToList();
+  var finish = function(){
+    var wasQuick = $('searchFilter') && $('searchFilter').value === 'Quick orders — fill in';
+    resetForm(true);
+    if(wasQuick){ go('find'); renderFind(); window.scrollTo(0,0); return; }
+    backToList();
+  };
+  if(!editHasChanges()) return finish();
+  ask({ title:'Leave without saving?',
+        body:'The changes you have typed will be lost.',
+        kind:'confirm', okLabel:'Leave', tone:'danger' }, function(yes){
+    if(yes) finish();
+  });
 }
 function clearOrCancel(){
   if($('editingId').value) cancelEdit();
@@ -6045,9 +6721,15 @@ function editOrder(id){
 }
 function deleteOrder(id){
   var o = DB.orders.filter(function(x){ return x.id===id; })[0];
-  if(!confirm('Delete '+o.orderId+' for '+o.firstName+' '+o.lastName+'? This cannot be undone.')) return;
-  DB.orders = DB.orders.filter(function(x){ return x.id!==id; });
-  save(); toast('Order deleted'); renderFind(); updateDueBadge(); updateQuickBadge();
+  if(!o) return;
+  var who = String((o.firstName||'') + ' ' + (o.lastName||'')).trim();
+  ask({ title:'Delete ' + o.orderId + '?',
+        body:(who ? 'For ' + who + '. ' : '') + 'This cannot be undone.',
+        kind:'confirm', okLabel:'Delete it', tone:'danger' }, function(yes){
+    if(!yes) return;
+    DB.orders = DB.orders.filter(function(x){ return x.id!==id; });
+    save(); toast('Order deleted'); renderFind(); updateDueBadge(); updateQuickBadge();
+  });
 }
 
 /* ---------- due ---------- */
@@ -6195,6 +6877,71 @@ function filterCaption(){
   if(f.text)    bits.push('matching "' + f.text + '"');
   return bits.join(' · ');
 }
+/* ---------- one slip reads as one order ----------
+   Garments are stored one record each so the sheet keeps its per-garment rows,
+   but a customer only ever had one order. Everything a person reads — Find, the
+   summary, the printed report — groups the records back into the slip they came
+   from.
+
+   expand=true pulls in every garment on the slip even if the filter only matched
+   one of them. That is right for Find, which is about getting to the order. It
+   is wrong for the summary, where the money on screen has to add up to exactly
+   what the filters selected, so there it stays off. */
+function ticketGroups(list, expand){
+  var seen = {}, out = [];
+  (list || []).forEach(function(o){
+    var t = o.ticketId || o.id;
+    if(seen[t]){ if(!expand) seen[t].lines.push(o); return; }
+    var g = { tid: t, lines: (expand && o.ticketId) ? ticketLines(o.ticketId).slice() : [o] };
+    seen[t] = g; out.push(g);
+  });
+  out.forEach(function(g){
+    g.lines.sort(function(a,b){ return num(a.lineNo) - num(b.lineNo); });
+    var h = g.head = g.lines[0];
+    g.orderNo = ticketOrderNo(g.lines);
+    g.count = g.lines.length;
+    g.whole = h.ticketId ? ticketLines(h.ticketId).length : 1;
+    g.partial = g.count < g.whole;
+    g.total   = g.lines.reduce(function(a,o){ return a + num(o.orderTotal); }, 0);
+    g.paid    = g.lines.reduce(function(a,o){ return a + num(o.amountPaid); }, 0);
+    g.balance = g.lines.reduce(function(a,o){ return a + num(o.balance); }, 0);
+    g.pieces  = g.lines.reduce(function(a,o){ return a + (parseInt(o.set||1,10)||1); }, 0);
+    g.done    = g.lines.reduce(function(a,o){ return a + (parseInt(o.completedStatus||0,10)||0); }, 0);
+    g.received     = g.lines.every(function(o){ return o.isReceived; });
+    g.anyReceived  = g.lines.some(function(o){ return o.isReceived; });
+    g.needsDetails = g.lines.some(function(o){ return o.needsDetails; });
+    g.voided       = g.lines.every(function(o){ return o.voided; });
+    g.corrected    = g.lines.some(function(o){ return o.corrected; });
+    g.conflict     = g.lines.some(function(o){ return o.conflict; });
+    g.addedLater   = g.lines.some(function(o){ return o.addedLater; });
+    g.hasProof     = g.lines.some(function(o){ return o.hasProof; });
+    g.products = productSummary(g.lines);
+    g.dateOrdered = h.dateOrdered || '';
+    var dues = g.lines.map(function(o){ return o.dateDue || ''; }).filter(Boolean).sort();
+    g.dateDue = dues[0] || '';
+  });
+  return out;
+}
+/* "LAB GOWN, SCRUB SUIT ×2" — what the customer actually ordered, in one line. */
+function productSummary(lines){
+  var order = [], byName = {};
+  (lines || []).forEach(function(o){
+    var n = o.productName || '—';
+    if(!(n in byName)){ byName[n] = 0; order.push(n); }
+    byName[n] += 1;
+  });
+  return order.map(function(n){
+    return n + (byName[n] > 1 ? ' \u00d7' + byName[n] : '');
+  }).join(', ');
+}
+function ticketStatusText(g){
+  if(g.received) return 'Picked up';
+  if(g.anyReceived) return 'Part picked up';
+  if(g.pieces > 0 && g.done >= g.pieces) return 'Ready';
+  if(g.done > 0) return g.done + ' of ' + g.pieces + ' done';
+  return 'Not started';
+}
+
 function statusText(o){
   var done = parseInt(o.completedStatus||0,10), total = parseInt(o.set||1,10);
   if(o.isReceived) return 'Picked up';
@@ -6210,25 +6957,28 @@ function renderSummary(){
   var due   = total - paid;
   var tickets = {}; list.forEach(function(o){ tickets[o.ticketId || o.id] = 1; });
 
-  var rows = list.slice(0, 300).map(function(x){
-    return '<tr onclick="openOrder(\''+x.id+'\')" style="cursor:pointer">'+
-      '<td>'+esc(x.orderId)+'</td>'+
-      '<td>'+esc(x.lastName)+'</td>'+
-      '<td>'+esc(x.firstName)+'</td>'+
-      '<td>'+esc(x.companySchool||'—')+'</td>'+
-      '<td>'+esc(x.productName||'—')+(x.sizing?' ('+esc(x.sizing)+')':'')+'</td>'+
-      '<td>'+nice(x.dateOrdered)+'</td>'+
-      '<td>'+nice(x.dateDue)+'</td>'+
-      '<td class="num">'+peso(x.orderTotal)+'</td>'+
-      '<td class="num">'+peso(x.amountPaid)+'</td>'+
-      '<td class="num" style="color:'+(num(x.balance)>0?'var(--bad)':'var(--ok)')+'">'+peso(x.balance)+'</td>'+
-      '<td>'+statusText(x)+'</td></tr>';
+  var groups = ticketGroups(list, false);
+  var rows = groups.slice(0, 300).map(function(g){
+    return '<tr onclick="openOrder(\''+g.head.id+'\')" style="cursor:pointer">'+
+      '<td>'+esc(g.orderNo)+'</td>'+
+      '<td>'+esc(g.head.lastName)+'</td>'+
+      '<td>'+esc(g.head.firstName)+'</td>'+
+      '<td>'+esc(g.head.companySchool||'—')+'</td>'+
+      '<td>'+esc(g.products)+
+        (g.count > 1 ? ' <span class="sub">('+g.count+' garments)</span>' : '')+
+        (g.partial ? ' <span class="sub">— '+g.count+' of '+g.whole+' shown</span>' : '')+'</td>'+
+      '<td>'+nice(g.dateOrdered)+'</td>'+
+      '<td>'+nice(g.dateDue)+'</td>'+
+      '<td class="num">'+peso(g.total)+'</td>'+
+      '<td class="num">'+peso(g.paid)+'</td>'+
+      '<td class="num" style="color:'+(g.balance>0?'var(--bad)':'var(--ok)')+'">'+peso(g.balance)+'</td>'+
+      '<td>'+ticketStatusText(g)+'</td></tr>';
   }).join('');
 
   $('sumContent').innerHTML =
     '<div class="stat-strip">'+
+      '<div class="stat"><div class="k">Orders</div><div class="v">'+groups.length+'</div></div>'+
       '<div class="stat"><div class="k">Garments</div><div class="v">'+list.length+'</div></div>'+
-      '<div class="stat"><div class="k">Orders</div><div class="v">'+Object.keys(tickets).length+'</div></div>'+
       '<div class="stat"><div class="k">Collected</div><div class="v">'+peso(paid)+'</div></div>'+
       '<div class="stat"><div class="k">Outstanding</div><div class="v" style="color:'+(due>0?'var(--bad)':'var(--ok)')+'">'+peso(due)+'</div></div>'+
     '</div>'+
@@ -6238,7 +6988,7 @@ function renderSummary(){
       '<th>No.</th><th>Last name</th><th>First name</th><th>School</th><th>Product</th><th>Ordered</th><th>Due</th>'+
       '<th class="num">Total</th><th class="num">Paid</th><th class="num">Balance</th><th>Status</th>'+
       '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
-      (list.length > 300 ? '<p class="sub">Showing the first 300 on screen. Print and CSV include all '+list.length+'.</p>' : '')
+      (groups.length > 300 ? '<p class="sub">Showing the first 300 orders on screen. Print includes all '+groups.length+'; the CSV has all '+list.length+' garments.</p>' : '')
       : '<div class="empty"><div class="big">Nothing matches those filters</div>Widen the dates or clear the filters.</div>');
 }
 
@@ -6255,6 +7005,7 @@ function printSummary(){
   if(!list.length){ toast('Nothing to print with those filters'); return; }
   var total = list.reduce(function(a,o){ return a + num(o.orderTotal); }, 0);
   var paid  = list.reduce(function(a,o){ return a + num(o.amountPaid); }, 0);
+  var groups = ticketGroups(list, false);
 
   var h = '<div class="rhead"><div class="rtitle">BELLE\'S DRESS SHOP</div>'+
     '<div class="rsub">Order report · '+esc(filterCaption())+'</div>'+
@@ -6262,18 +7013,19 @@ function printSummary(){
       ((DB.device && DB.device.name) ? ' · '+esc(DB.device.name) : '')+
       (currentUser() ? ' · '+esc(currentUser()) : '')+'</div></div>'+
     '<table class="rtab"><thead><tr>'+
-      '<th>No.</th><th>Last name</th><th>First name</th><th>Phone</th><th>School</th><th>Product</th>'+
+      '<th>No.</th><th>Last name</th><th>First name</th><th>Phone</th><th>School</th><th>Garments</th>'+
       '<th>Ordered</th><th>Due</th><th class="r">Total</th><th class="r">Paid</th>'+
       '<th class="r">Balance</th><th>Status</th></tr></thead><tbody>'+
-    list.map(function(o){
-      return '<tr><td>'+esc(o.orderId)+'</td><td>'+esc(o.lastName)+'</td><td>'+esc(o.firstName)+'</td>'+
+    groups.map(function(g){
+      var o = g.head;
+      return '<tr><td>'+esc(g.orderNo)+'</td><td>'+esc(o.lastName)+'</td><td>'+esc(o.firstName)+'</td>'+
         '<td>'+esc(o.phoneNumber||'')+'</td><td>'+esc(o.companySchool||'')+'</td>'+
-        '<td>'+esc(o.productName||'')+(o.sizing?' ('+esc(o.sizing)+')':'')+'</td>'+
-        '<td>'+nice(o.dateOrdered)+'</td><td>'+nice(o.dateDue)+'</td>'+
-        '<td class="r">'+peso(o.orderTotal)+'</td><td class="r">'+peso(o.amountPaid)+'</td>'+
-        '<td class="r">'+peso(o.balance)+'</td><td>'+esc(statusText(o))+'</td></tr>';
+        '<td>'+esc(g.products)+(g.count > 1 ? ' ('+g.count+')' : '')+'</td>'+
+        '<td>'+nice(g.dateOrdered)+'</td><td>'+nice(g.dateDue)+'</td>'+
+        '<td class="r">'+peso(g.total)+'</td><td class="r">'+peso(g.paid)+'</td>'+
+        '<td class="r">'+peso(g.balance)+'</td><td>'+esc(ticketStatusText(g))+'</td></tr>';
     }).join('')+
-    '</tbody><tfoot><tr><th colspan="8">'+list.length+' garment(s)</th>'+
+    '</tbody><tfoot><tr><th colspan="8">'+groups.length+' order(s) · '+list.length+' garment(s)</th>'+
       '<th class="r">'+peso(total)+'</th><th class="r">'+peso(paid)+'</th>'+
       '<th class="r">'+peso(total-paid)+'</th><th></th></tr></tfoot></table>';
 
@@ -6286,6 +7038,135 @@ function printSummary(){
   // dialog builds its preview, well after any timeout would fire. Each
   // print function sets its own styling first, so leaving this in place
   // until the next print is safe.
+}
+
+/* ---------- item 19: who still owes ----------
+   One row per ORDER, with the phone to hand and a message ready to send. */
+function owingGroups(){
+  var list = DB.orders.filter(function(o){ return !o.voided; });
+  return ticketGroups(list, false)
+    .filter(function(g){ return g.balance > 0.004; })
+    .sort(function(a,b){ return b.balance - a.balance; });
+}
+function overpaidGroups(){
+  var list = DB.orders.filter(function(o){ return !o.voided; });
+  return ticketGroups(list, false)
+    .filter(function(g){ return g.balance < -0.004; })
+    .sort(function(a,b){ return a.balance - b.balance; });
+}
+function owingMessage(g){
+  var who = String((g.head.firstName||'') + ' ' + (g.head.lastName||'')).trim();
+  return 'Hi' + (who ? ' ' + who : '') + ', this is Belle\'s Dress Shop. ' +
+    'Your order ' + g.orderNo + ' (' + g.products + ') has a remaining balance of ' +
+    peso(g.balance) + ' out of ' + peso(g.total) + '.' +
+    (g.dateDue ? ' It is due ' + nice(g.dateDue) + '.' : '') +
+    ' Thank you!';
+}
+function textOwing(tid){
+  var g = owingGroups().filter(function(x){ return x.tid === tid; })[0];
+  if(!g){ toast('That order is settled'); renderOwing(); return; }
+  var msg = owingMessage(g);
+  var phone = String(g.head.phoneNumber || '').replace(/[^0-9+]/g,'');
+  if(!phone){
+    ask({ title:'No phone number on this order',
+          body:'Add one to the order first, or copy the message and send it another way.',
+          kind:'confirm', okLabel:'Copy the message' }, function(yes){
+      if(yes) copyText(msg, 'Message copied');
+    });
+    return;
+  }
+  try{
+    window.location.href = 'sms:' + phone + '?body=' + encodeURIComponent(msg);
+  }catch(e){
+    copyText(msg, 'Message copied');
+  }
+}
+function copyOwing(tid){
+  var g = owingGroups().filter(function(x){ return x.tid === tid; })[0];
+  if(!g) return;
+  copyText(owingMessage(g), 'Message copied');
+}
+function copyText(txt, okMsg){
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt);
+      toast(okMsg || 'Copied'); return;
+    }
+  }catch(e){}
+  ask({ title:'Copy this message', body:txt, kind:'text', value:txt,
+        okLabel:'Done' }, function(){});
+}
+function renderOwing(){
+  var box = $('owingList');
+  if(!box) return;
+  var gs = owingGroups();
+  var total = gs.reduce(function(a,g){ return a + g.balance; }, 0);
+  if($('owingHead')){
+    $('owingHead').textContent = gs.length
+      ? gs.length + ' order' + (gs.length===1?'':'s') + ' still owing ' + peso(total)
+      : 'Everyone is paid up';
+  }
+  var over = overpaidGroups();
+  var overHTML = over.length
+    ? '<div class="cnote warn" style="margin-bottom:10px"><div class="ch">'+
+      over.length+' order'+(over.length===1?'':'s')+' paid more than the total</div>'+
+      '<div class="cb">'+over.map(function(g){
+        return esc(g.orderNo)+' is over by '+peso(Math.abs(g.balance)); }).join(' · ')+
+      '. Either money is owed back, or a garment was left off the order.</div></div>'
+    : '';
+  if(!gs.length){
+    box.innerHTML = overHTML + '<p class="sub">Nothing outstanding.</p>';
+    return;
+  }
+  box.innerHTML = overHTML + '<div class="tablewrap"><table><thead><tr>'+
+    '<th>No.</th><th>Last name</th><th>First name</th><th>Phone</th><th>Garments</th>'+
+    '<th>Due</th><th class="num">Total</th><th class="num">Paid</th><th class="num">Owing</th><th></th>'+
+    '</tr></thead><tbody>'+
+    gs.map(function(g){
+      var o = g.head;
+      return '<tr>'+
+        '<td style="cursor:pointer" onclick="openOrder(\''+o.id+'\')">'+esc(g.orderNo)+'</td>'+
+        '<td>'+esc(o.lastName||'—')+'</td>'+
+        '<td>'+esc(o.firstName||'')+'</td>'+
+        '<td>'+esc(o.phoneNumber||'<span class="sub">none</span>')+'</td>'+
+        '<td>'+esc(g.products)+'</td>'+
+        '<td>'+(g.dateDue ? nice(g.dateDue) : '—')+'</td>'+
+        '<td class="num">'+peso(g.total)+'</td>'+
+        '<td class="num">'+peso(g.paid)+'</td>'+
+        '<td class="num" style="color:var(--bad)">'+peso(g.balance)+'</td>'+
+        '<td><button class="btn btn-ghost btn-sm" onclick="textOwing(\''+g.tid+'\')">Text</button> '+
+            '<button class="btn btn-ghost btn-sm" onclick="copyOwing(\''+g.tid+'\')">Copy</button></td>'+
+      '</tr>';
+    }).join('')+
+    '</tbody><tfoot><tr><th colspan="8">'+gs.length+' order(s)</th>'+
+    '<th class="num">'+peso(total)+'</th><th></th></tr></tfoot></table></div>';
+}
+function printOwing(){
+  var gs = owingGroups();
+  if(!gs.length){ toast('Nothing outstanding'); return; }
+  var total = gs.reduce(function(a,g){ return a + g.balance; }, 0);
+  var h = '<div class="rhead"><div class="rtitle">BELLE\'S DRESS SHOP</div>'+
+    '<div class="rsub">Balances still owing</div>'+
+    '<div class="rsub">Printed '+esc(stampNice(stamp()))+
+      (currentUser() ? ' · '+esc(currentUser()) : '')+'</div></div>'+
+    '<table class="rtab"><thead><tr><th>No.</th><th>Last name</th><th>First name</th>'+
+    '<th>Phone</th><th>Garments</th><th>Due</th>'+
+    '<th class="r">Total</th><th class="r">Paid</th><th class="r">Owing</th></tr></thead><tbody>'+
+    gs.map(function(g){
+      var o = g.head;
+      return '<tr><td>'+esc(g.orderNo)+'</td><td>'+esc(o.lastName||'')+'</td>'+
+        '<td>'+esc(o.firstName||'')+'</td><td>'+esc(o.phoneNumber||'')+'</td>'+
+        '<td>'+esc(g.products)+'</td><td>'+(g.dateDue ? nice(g.dateDue) : '')+'</td>'+
+        '<td class="r">'+peso(g.total)+'</td><td class="r">'+peso(g.paid)+'</td>'+
+        '<td class="r">'+peso(g.balance)+'</td></tr>';
+    }).join('')+
+    '</tbody><tfoot><tr><th colspan="8">'+gs.length+' order(s) owing</th>'+
+    '<th class="r">'+peso(total)+'</th></tr></tfoot></table>';
+  setPrintStyle('report');
+  var area = $('printArea');
+  area.className = 'report';
+  area.innerHTML = h;
+  printNow();
 }
 
 /* ---------- lists ---------- */
@@ -6448,11 +7329,14 @@ function delAddon(i){
   var a = DB.addons[i];
   var used = DB.orders.filter(function(o){
     return (o.addons||[]).some(function(x){ return x.name === a.name; }); }).length;
-  var msg = 'Remove the add-on "' + a.name + '"?';
-  if(used) msg += '\n\n' + used + ' saved order(s) used it. Those orders keep it — only the option goes.';
-  if(!confirm(msg)) return;
-  DB.addons.splice(i,1); save(); renderAddons(); refreshAddonButtons();
-  toast('Removed ' + a.name);
+  ask({ title:'Remove the add-on "' + a.name + '"?',
+        body:(used ? used + ' saved order(s) used it. Those orders keep it — only the option goes.'
+                   : 'It is not used on any saved order.'),
+        kind:'confirm', okLabel:'Remove it', tone:'danger' }, function(yes){
+    if(!yes) return;
+    DB.addons.splice(i,1); save(); renderAddons(); refreshAddonButtons();
+    toast('Removed ' + a.name);
+  });
 }
 function renderAddons(){
   if(!$('addonList')) return;
@@ -7000,11 +7884,15 @@ function addSizePrice(i){
 }
 function delSizePrice(i, j){
   var p = DB.products[i], sz = p.sizes[j];
-  if(!confirm('Remove the ' + sz.size + ' price of ' + peso(sz.price) + ' from ' + p.name +
-              '?\n\nThat size will fall back to the usual price of ' + peso(p.price) + '.')) return;
-  p.sizes.splice(j,1);
-  save(); renderProducts(); fillSizes();
-  toast(sz.size + ' price removed');
+  ask({ title:'Remove the ' + sz.size + ' price?',
+        body:peso(sz.price) + ' on ' + p.name + '. That size will fall back to the usual price of ' +
+             peso(p.price) + '.',
+        kind:'confirm', okLabel:'Remove it', tone:'danger' }, function(yes){
+    if(!yes) return;
+    p.sizes.splice(j,1);
+    save(); renderProducts(); fillSizes();
+    toast(sz.size + ' price removed');
+  });
 }
 function delItem(list, i){
   var item = DB[list][i];
@@ -7018,9 +7906,13 @@ function delItem(list, i){
     if(prods) msg += '\n\n' + prods + ' product price list(s) are set up under it and will be left orphaned.';
   }
   if(used) msg += '\n\n' + used + ' saved order(s) already use it. Those orders keep the name — only the list entry goes.';
-  if(!confirm(msg)) return;
-  DB[list].splice(i,1); save(); renderCatalog(); refreshDropdowns();
-  toast('Removed ' + label);
+  ask({ title:'Remove the ' + what + ' "' + label + '"?',
+        body:msg.split('\n\n').slice(1).join(' ') || 'Nothing else uses it.',
+        kind:'confirm', okLabel:'Remove it', tone:'danger' }, function(yes){
+    if(!yes) return;
+    DB[list].splice(i,1); save(); renderCatalog(); refreshDropdowns();
+    toast('Removed ' + label);
+  });
 }
 
 /* ---------- tablet identity ---------- */
@@ -7358,9 +8250,15 @@ function readBackupFile(input, handler){
   });
 }
 function doRestoreReplace(d){
-  if(!confirm('Replace everything on this tablet with the backup?\n\n' +
-              DB.orders.length + ' orders here will be deleted and ' + d.orders.length +
-              ' from the file will take their place.\n\nTo combine two tablets instead, cancel and use Merge another tablet.')) return;
+  ask({ title:'Replace everything on this tablet?',
+        body:DB.orders.length + ' orders here will be deleted and ' + d.orders.length +
+             ' from the file will take their place. To combine two tablets instead, ' +
+             'cancel and use Merge another tablet.',
+        kind:'confirm', okLabel:'Replace everything', tone:'danger' }, function(yes){
+    if(yes) doRestoreReplaceNow(d);
+  });
+}
+function doRestoreReplaceNow(d){
   var myDevice = DB.device;
   DB = d;
   if(myDevice) DB.device = myDevice;      // keep this tablet's own code
@@ -7407,9 +8305,15 @@ function restoreFromPaste(merge){
   var d = parsePastedBackup();
   if(!d){ toast('That is not a Belle\u2019s backup — copy the whole file and try again'); return; }
   if(merge){
-    if(!confirm('Merge ' + d.orders.length + ' orders into this tablet?\n\n' +
-                'Nothing here is deleted. Orders already on both are kept at whichever version was edited last.')) return;
-    mergeBackup(d);
+    ask({ title:'Merge ' + d.orders.length + ' orders into this tablet?',
+          body:'Nothing here is deleted. Orders already on both are kept at whichever version was edited last.',
+          kind:'confirm', okLabel:'Merge them' }, function(yes){
+      if(!yes) return;
+      mergeBackup(d);
+      if($('pasteRestore')) $('pasteRestore').value = '';
+      pasteRestoreInfo();
+    });
+    return;
   } else {
     doRestoreReplace(d);
   }
@@ -7418,9 +8322,11 @@ function restoreFromPaste(merge){
 }
 readBackupFile($('mergeFile'), function(d, name){
   var from = (d.device && d.device.name) ? d.device.name : name;
-  if(!confirm('Merge ' + d.orders.length + ' orders from ' + from + ' into this tablet?\n\n' +
-              'Nothing here is deleted. Orders already on both are kept at whichever version was edited last.')) return;
-  mergeBackup(d);
+  ask({ title:'Merge ' + d.orders.length + ' orders from ' + from + '?',
+        body:'Nothing here is deleted. Orders already on both are kept at whichever version was edited last.',
+        kind:'confirm', okLabel:'Merge them' }, function(yes){
+    if(yes) mergeBackup(d);
+  });
 });
 function wipeAll(){
   if(!DB.orders.length){ toast('There are no orders to delete'); return; }
