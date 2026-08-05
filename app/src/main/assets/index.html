@@ -331,6 +331,40 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
 .pgroup-head{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--rose-deep);display:flex;align-items:center;gap:9px;margin-bottom:6px}
 .pgroup-head::after{content:"";flex:1;height:1px;background:var(--line)}
+.pgroup-head .gcopy{order:1;flex:none;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--rose-deep);background:var(--blush);border:1px solid var(--blush-2);
+  border-radius:99px;padding:4px 10px;min-height:0;cursor:pointer}
+.pgroup-head .gcopy:active{background:var(--blush-2)}
+
+/* ---------- copying a product to other departments ---------- */
+.cpbox{max-width:520px}
+.cpbox .cpsub{margin:0 0 12px;font-size:14px;line-height:1.5;color:var(--muted)}
+.cpbox .cpfind{width:100%;min-height:44px;padding:10px 12px;margin-bottom:10px;
+  border:1px solid var(--line);border-radius:11px;background:var(--canvas);
+  font-family:var(--sans);font-size:15px;color:var(--ink)}
+.cpbox .cpfind:focus{outline:none;border-color:var(--rose);background:#fff}
+.cptools{display:flex;gap:8px;margin-bottom:10px}
+.cptools .btn{flex:1;min-height:38px;padding:8px 12px;font-size:13px}
+.cplist{max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:12px;
+  background:var(--canvas);padding:6px;margin-bottom:12px}
+.cpgroup{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--rose-deep);padding:9px 8px 5px;display:flex;align-items:center;gap:8px}
+.cpgroup span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cpgroup button{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);background:none;border:0;padding:3px 6px;cursor:pointer;flex:none}
+.cpopt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;cursor:pointer;
+  background:#fff;border:1px solid var(--line);border-radius:9px;padding:10px 11px;margin-bottom:5px;
+  font-family:var(--sans);font-size:14.5px;color:var(--ink);min-height:44px}
+.cpopt .tick{flex:none;width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line);
+  background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent}
+.cpopt.on{border-color:var(--rose);background:var(--blush)}
+.cpopt.on .tick{background:var(--rose-deep);border-color:var(--rose-deep);color:#fff}
+.cpopt .cplbl{flex:1;min-width:0}
+.cpopt .cpnote{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--muted);flex:none}
+.cpempty{padding:14px 10px;font-size:14px;color:var(--muted)}
+.cptally{font-size:13.5px;line-height:1.5;color:var(--muted);margin:0 0 12px}
+.cptally b{color:var(--ink);font-weight:600}
 .prow{border:1px solid var(--line);border-radius:9px;margin-bottom:6px;background:#fff;overflow:hidden}
 .prow.open{border-color:var(--blush-2);box-shadow:var(--shadow)}
 .prow-head{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;width:100%;
@@ -1369,6 +1403,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
 
 <div class="toast" id="toast"></div>
 <div class="askwrap" id="askWrap" hidden><div class="askbox" id="askBox"></div></div>
+<div class="askwrap" id="cpWrap" hidden><div class="askbox cpbox" id="cpBox"></div></div>
 <div class="pos" id="printArea"></div>
 
 <script>/* QR Code Generator — Kazuhiko Arase, MIT */
@@ -1454,6 +1489,11 @@ function load(){
       p.department = String(p.department).toUpperCase();
       p.sizes.forEach(function(x){ x.size = String(x.size).toUpperCase(); });
     });
+    upgradeListKeys();
+    // Baseline the lists now. Left until the first save, the very first change
+    // after opening the app has nothing to be compared against and slips by
+    // unnoticed — which is exactly the edit somebody is most likely to make.
+    lastListSnapshot = listSnapshot();
     localStorage.setItem(KEY + '_probe','1');
     localStorage.removeItem(KEY + '_probe');
   }catch(e){
@@ -1479,9 +1519,46 @@ function markSaved(state){
    remembered as deliberately removed, so another tablet cannot quietly put it
    back. That way any future list change is covered without hunting for it. */
 var LIST_KINDS = ['schools','departments','products','addons'];
+/* The key has to name one exact entry. Products and departments repeat the same
+   name in different places — BLOUSE under JUNIOR HIGH and BLOUSE under SENIOR
+   HIGH are two separate things — so the school and department belong in the key.
+   Without them a sync would treat every BLOUSE as one entry and let the last one
+   in overwrite the rest. */
 function listKey(kind, item){
   if(kind === 'schools') return String(item||'').toUpperCase();
-  return String((item && item.name) || '').toUpperCase();
+  var n = String((item && item.name) || '').toUpperCase();
+  if(!n) return '';
+  if(kind === 'products'){
+    return n + '\u0001' + String((item && item.school)||'').toUpperCase() +
+               '\u0001' + String((item && item.department)||'').toUpperCase();
+  }
+  if(kind === 'departments') return n + '\u0001' + String((item && item.school)||'').toUpperCase();
+  if(kind === 'addons')      return n + '\u0001' + String((item && item.product)||'').toUpperCase();
+  return n;
+}
+/* Older builds keyed these lists by name alone. The change-dates recorded under
+   those short keys are carried across to the new ones so nothing looks freshly
+   edited and no tablet wins an argument it should lose. */
+function upgradeListKeys(){
+  if(DB.listKeysV2) return;
+  var oldMeta = DB.listMeta || {}, newMeta = {};
+  ['schools','departments','products','addons'].forEach(function(kind){
+    newMeta[kind] = {};
+    var was = oldMeta[kind] || {};
+    (DB[kind]||[]).forEach(function(item){
+      var k = listKey(kind, item);
+      if(!k) return;
+      var short = (kind === 'schools') ? k : String((item && item.name) || '').toUpperCase();
+      if(was[k]) newMeta[kind][k] = was[k];
+      else if(was[short]) newMeta[kind][k] = was[short];
+    });
+  });
+  DB.listMeta = newMeta;
+  // Removal notes were filed under name-only keys and cannot be matched to a
+  // single school or department now, so they are let go rather than guessed at.
+  DB.listGone = { schools: (DB.listGone && DB.listGone.schools) || {},
+                  departments: {}, products: {}, addons: {} };
+  DB.listKeysV2 = true;
 }
 function listFingerprint(kind, item){
   if(kind === 'schools') return listKey(kind, item);
@@ -1505,12 +1582,15 @@ function listSnapshot(){
   return snap;
 }
 var lastListSnapshot = null;
+/* Returns true when something on the lists actually moved, so the caller can
+   decide whether the sheet needs telling. */
 function stampListChanges(){
   if(!DB.listMeta) DB.listMeta = {};
   if(!DB.listGone) DB.listGone = {};
   var now = stamp();
   var current = listSnapshot();
-  if(!lastListSnapshot){ lastListSnapshot = current; return; }
+  if(!lastListSnapshot){ lastListSnapshot = current; return false; }
+  var moved = false;
   LIST_KINDS.forEach(function(kind){
     DB.listMeta[kind] = DB.listMeta[kind] || {};
     DB.listGone[kind] = DB.listGone[kind] || {};
@@ -1519,16 +1599,19 @@ function stampListChanges(){
       if(was[k] !== is[k]){                 // added, or edited
         DB.listMeta[kind][k] = now;
         delete DB.listGone[kind][k];        // brought back on purpose
+        moved = true;
       }
     });
     Object.keys(was).forEach(function(k){
       if(!(k in is)){                       // taken off the list on purpose
         DB.listGone[kind][k] = now;
         delete DB.listMeta[kind][k];
+        moved = true;
       }
     });
   });
   lastListSnapshot = current;
+  return moved;
 }
 /* Everything the other tablets need to reproduce these lists. */
 function listBundle(){
@@ -1602,7 +1685,12 @@ function mergeLists(remote){
   return stats;
 }
 function save(){
-  stampListChanges();
+  /* A product, school, department or add-on that changes here has to reach the
+     sheet on its own. Before, the lists only ever went up alongside an order,
+     so a tablet that spent the morning setting up a catalogue and took no
+     orders sent nothing. Catching it in the one place every change passes
+     through covers every add, rename, price edit and deletion at once. */
+  var listsMoved = stampListChanges();
   if(!storageOK){ markSaved('failed'); return false; }
   markSaved('writing');
   try{
@@ -1610,6 +1698,7 @@ function save(){
     markSaved('saved');
     if($('storageMeter')) renderStorage();
     checkStorageWarning();
+    if(listsMoved && typeof queueSync === 'function') queueSync();
     return true;
   }catch(e){
     markSaved('failed');
@@ -3546,6 +3635,8 @@ function askPick(i){
 }
 /* Enter submits a text answer. */
 document.addEventListener('keydown', function(e){
+  var cw = $('cpWrap');
+  if(cw && !cw.hidden && e.key === 'Escape'){ e.preventDefault(); cpClose(); return; }
   var wrap = $('askWrap');
   if(!wrap || wrap.hidden) return;
   if(e.key === 'Enter' && (ASK_OPTS.kind || '') === 'text'){ e.preventDefault(); askOk(); }
@@ -4208,7 +4299,9 @@ function syncNow(manual){
     if(manual) toast('Nothing new to send'); return; }
 
   syncing = true;
-  c.lastMsg = 'Sending ' + batch.length + ' order(s)…'; renderSync();
+  c.lastMsg = batch.length ? ('Sending ' + batch.length + ' order(s)…')
+                           : 'Sending list changes…';
+  renderSync();
   var sentAt = stamp();
 
   fetch(c.url, {
@@ -4232,15 +4325,18 @@ function syncNow(manual){
     batch.forEach(function(o){ o.syncedAt = sentAt; });
     c.listsSentHash = JSON.stringify(listSnapshot());
     c.lastAt = stamp();
-    c.lastMsg = batch.length + ' order(s) sent · ' + msg +
-                (listsChanged && msg.indexOf('lists updated') === -1 ? ' · lists updated' : '');
+    c.lastMsg = (batch.length ? batch.length + ' order(s) sent · ' + msg
+                              : 'Lists sent') +
+                (listsChanged && msg.indexOf('lists updated') === -1 && batch.length
+                   ? ' · lists updated' : '');
     syncing = false; save(); renderSync();
     if(manual) toast('Sheet updated');
   })
   .catch(function(err){
     syncing = false;
     c.lastMsg = 'Failed: ' + (err && err.message ? err.message : 'could not reach the script') +
-                ' · ' + batch.length + ' order(s) still queued';
+                (batch.length ? ' · ' + batch.length + ' order(s) still queued'
+                              : ' · list changes still waiting');
     save(); renderSync();
     if(manual) toast('Sync failed — see Setup for the reason');
   });
@@ -5898,6 +5994,245 @@ function addProduct(){
   renderLists(); refreshProductChoices();
   toast('Added ' + n + (school ? ' for ' + school : '') + (dept ? ' · ' + dept : ''));
 }
+/* ---------- copying products to other departments ----------
+   Most schools order the same garments department after department, and typing
+   each one again is the slowest job in the catalogue. One product, or a whole
+   department's worth, can be stamped onto as many other departments as needed in
+   a single go, prices and size prices included. */
+
+var CP = null;   // what is being copied, where to, and how
+
+/* Every slot a product can sit in: each school on its own, each of its
+   departments, and the catch-alls that apply to anybody. */
+function copyDestList(){
+  var out = [], seen = {};
+  function put(school, dept, label, group){
+    var k = school + '\u0001' + dept;
+    if(seen[k]) return;
+    seen[k] = 1;
+    out.push({school:school, dept:dept, label:label, group:group, key:k});
+  }
+  DB.schools.forEach(function(s){
+    put(s, '', 'Whole school — no department', s);
+    departmentNames(s).forEach(function(d){ put(s, d, d, s); });
+  });
+  put('', '', 'Everyone — no department', 'Any customer');
+  DB.departments.forEach(function(d){
+    if(!(d.school||'')) put('', d.name, d.name, 'Any customer');
+  });
+  return out;
+}
+
+/* The product already sitting in that slot, if there is one. */
+function productAt(name, school, dept){
+  var low = String(name).toLowerCase();
+  for(var i = 0; i < DB.products.length; i++){
+    var p = DB.products[i];
+    if(p.name.toLowerCase() === low && (p.school||'') === school &&
+       (p.department||'') === dept) return p;
+  }
+  return null;
+}
+
+function cpOpen(items, fromKey, fromLabel){
+  if(!items.length){ toast('Nothing to copy'); return; }
+  if(!DB.schools.length){ toast('Add a school first, under Schools and companies'); return; }
+  CP = {
+    items: items.map(function(p){
+      return { name:p.name, price:num(p.price), bigger:num(p.bigger), split:!!p.split,
+               sizes:(p.sizes||[]).map(function(z){ return {size:z.size, price:num(z.price)}; }) };
+    }),
+    fromKey: fromKey, fromLabel: fromLabel, picked: {}, search: '', mode: 'skip'
+  };
+  $('cpWrap').hidden = false;
+  cpRender();
+}
+function cpClose(){
+  CP = null;
+  var w = $('cpWrap');
+  if(w){ w.hidden = true; $('cpBox').innerHTML = ''; }
+}
+
+/* Copy every product in one school-and-department group, named by its position
+   in the list that was last drawn. */
+var PGROUP_KEYS = [];
+function cpGroup(gi){
+  var g = PGROUP_KEYS[gi];
+  if(!g) return;
+  var parts = String(g.key).split('\u0000');
+  var school = parts[0] || '', dept = parts[1] || '';
+  var items = g.idxs.map(function(i){ return DB.products[i]; }).filter(Boolean);
+  cpOpen(items, school + '\u0001' + dept,
+    (school || 'Any customer') + (dept ? ' › ' + dept : ' › whole school'));
+}
+/* Copy one product on its own. */
+function cpOne(i){
+  var p = DB.products[i];
+  if(!p) return;
+  cpOpen([p], (p.school||'') + '\u0001' + (p.department||''),
+    (p.school || 'Any customer') + ((p.department) ? ' › ' + p.department : ' › whole school'));
+}
+
+/* Handlers take a position in the list rather than a name, so a school called
+   BELLE'S cannot break the quoting in the button it sits in. */
+function cpToggle(i){
+  if(!CP) return;
+  var t = (CP.dests || [])[i];
+  if(!t) return;
+  if(CP.picked[t.key]) delete CP.picked[t.key]; else CP.picked[t.key] = 1;
+  cpPaint();
+}
+function cpPickGroup(gi, on){
+  if(!CP) return;
+  var group = (CP.groupNames || [])[gi];
+  if(group == null) return;
+  (CP.dests || []).forEach(function(t){
+    if(t.group !== group) return;
+    if(CP.search && (t.group + ' ' + t.label).toLowerCase()
+        .indexOf(CP.search.toLowerCase().trim()) === -1) return;
+    if(on) CP.picked[t.key] = 1; else delete CP.picked[t.key];
+  });
+  cpPaint();
+}
+function cpClear(){ if(CP){ CP.picked = {}; cpPaint(); } }
+function cpSearch(v){ if(CP){ CP.search = v; cpPaint(); } }
+function cpMode(v){ if(CP){ CP.mode = v; cpPaint(); } }
+
+/* How many products each chosen slot would gain, and how many it already has. */
+function cpTally(){
+  var added = 0, clash = 0;
+  Object.keys(CP.picked).forEach(function(k){
+    var parts = k.split('\u0001');
+    CP.items.forEach(function(it){
+      if(productAt(it.name, parts[0], parts[1])) clash++; else added++;
+    });
+  });
+  return {added:added, clash:clash, slots:Object.keys(CP.picked).length};
+}
+
+/* The shell is written once when the dialog opens. Everything that changes as
+   the shop taps around — the list, the running total, the overwrite switch — is
+   redrawn on its own by cpPaint, so the search box is never replaced and the
+   tablet keyboard stays up while typing. */
+function cpRender(){
+  var box = $('cpBox');
+  if(!box || !CP) return;
+  var n = CP.items.length;
+  box.innerHTML =
+    '<h3>Copy to other departments</h3>' +
+    '<p class="cpsub">' + esc(n === 1 ? CP.items[0].name : n + ' products') +
+      ' from <b>' + esc(CP.fromLabel) + '</b>. Pick where else ' +
+      (n === 1 ? 'it should' : 'they should') +
+      ' appear — prices and size prices come along.</p>' +
+    '<input class="cpfind" type="text" id="cpFind" placeholder="Find a school or department…" ' +
+      'oninput="cpSearch(this.value)">' +
+    '<div class="cptools">' +
+      '<button class="btn btn-ghost btn-sm" onclick="cpClear()">Clear all</button>' +
+      '<button class="btn btn-ghost btn-sm" id="cpModeBtn"></button>' +
+    '</div>' +
+    '<div class="cplist" id="cpList"></div>' +
+    '<p class="cptally" id="cpTally"></p>' +
+    '<div class="askfoot">' +
+      '<button class="btn btn-ghost" onclick="cpClose()">Cancel</button>' +
+      '<button class="btn btn-primary" onclick="cpApply()">Copy</button>' +
+    '</div>';
+  cpPaint();
+}
+
+function cpPaint(){
+  if(!CP || !$('cpList')) return;
+  var term = CP.search.toLowerCase().trim();
+  var all = copyDestList().filter(function(t){ return t.key !== CP.fromKey; });
+  CP.dests = all;                                  // positions the buttons refer to
+  var shown = [];
+  all.forEach(function(t, i){
+    if(!term || (t.group + ' ' + t.label).toLowerCase().indexOf(term) > -1){
+      shown.push({t:t, i:i});
+    }
+  });
+
+  var mb = $('cpModeBtn');
+  if(mb){
+    mb.textContent = (CP.mode === 'skip') ? 'Leaving existing ones alone'
+                                          : 'Overwriting existing ones';
+    mb.setAttribute('onclick', "cpMode('" + (CP.mode === 'skip' ? 'replace' : 'skip') + "')");
+  }
+
+  if(!shown.length){
+    CP.groupNames = [];
+    $('cpList').innerHTML = '<p class="cpempty">Nothing matches that.</p>';
+  }else{
+    var groups = {}, order = [];
+    shown.forEach(function(row){
+      var g = row.t.group;
+      if(!groups[g]){ groups[g] = []; order.push(g); }
+      groups[g].push(row);
+    });
+    CP.groupNames = order;
+    $('cpList').innerHTML = order.map(function(g, gi){
+      var rows = groups[g].map(function(row){
+        var t = row.t, on = !!CP.picked[t.key];
+        var has = CP.items.filter(function(it){
+          return productAt(it.name, t.school, t.dept); }).length;
+        var note = has ? (has === CP.items.length ? 'all there' : has + ' there') : '';
+        return '<button type="button" class="cpopt' + (on ? ' on' : '') +
+          '" onclick="cpToggle(' + row.i + ')">' +
+          '<span class="tick">✓</span><span class="cplbl">' + esc(t.label) + '</span>' +
+          (note ? '<span class="cpnote">' + note + '</span>' : '') + '</button>';
+      }).join('');
+      var allOn = groups[g].every(function(row){ return CP.picked[row.t.key]; });
+      return '<div class="cpgroup"><span>' + esc(g) + '</span>' +
+        '<button onclick="cpPickGroup(' + gi + ',' + (allOn ? 'false' : 'true') + ')">' +
+        (allOn ? 'None' : 'All') + '</button></div>' + rows;
+    }).join('');
+  }
+
+  var t = cpTally();
+  $('cpTally').innerHTML = t.slots
+    ? '<b>' + t.slots + '</b> destination' + (t.slots === 1 ? '' : 's') +
+      ' · <b>' + t.added + '</b> to add' +
+      (t.clash ? ' · <b>' + t.clash + '</b> already there, ' +
+        (CP.mode === 'skip' ? 'left as they are' : 'to be overwritten') : '') + '.'
+    : 'Nothing picked yet.';
+}
+
+function cpApply(){
+  if(!CP) return;
+  var slots = Object.keys(CP.picked);
+  if(!slots.length){ toast('Pick at least one department'); return; }
+  var added = 0, replaced = 0, left = 0;
+  slots.forEach(function(k){
+    var parts = k.split('\u0001'), school = parts[0], dept = parts[1];
+    CP.items.forEach(function(it){
+      var have = productAt(it.name, school, dept);
+      if(have){
+        if(CP.mode === 'replace'){
+          have.price  = it.price;
+          have.bigger = it.bigger;
+          have.split  = it.split;
+          have.sizes  = it.sizes.map(function(z){ return {size:z.size, price:z.price}; });
+          replaced++;
+        }else left++;
+        return;
+      }
+      DB.products.push({
+        name: it.name, school: school, department: dept,
+        price: it.price, bigger: it.bigger, split: it.split,
+        sizes: it.sizes.map(function(z){ return {size:z.size, price:z.price}; })
+      });
+      added++;
+    });
+  });
+  openProd = null;          // the numbering has moved, so close any open row
+  save();
+  cpClose();
+  renderLists(); refreshProductChoices(); refreshDropdowns();
+  var msg = added + ' added';
+  if(replaced) msg += ' · ' + replaced + ' overwritten';
+  if(left)     msg += ' · ' + left + ' left alone';
+  toast(msg);
+}
+
 var openProd = null;   // index of the product whose sizes are showing
 
 function toggleProd(i){
@@ -5941,12 +6276,19 @@ function renderProducts(){
     return;
   }
 
-  box.innerHTML = order.map(function(key){
+  // Remember exactly what each group is showing, so "Copy all" copies what is on
+  // screen and not the products a search has hidden.
+  PGROUP_KEYS = order.map(function(key){
+    return { key: key, idxs: groups[key].map(function(g){ return g.i; }) };
+  });
+  box.innerHTML = order.map(function(key, gi){
     var parts = key.split('\u0000');
     var head = (parts[0] || 'Any customer') + (parts[1] ? ' › ' + parts[1] : ' › whole school');
     var rows = groups[key].map(function(g){ return prodRow(g.p, g.i); }).join('');
     return '<div class="pgroup"><div class="pgroup-head">'+
-      esc(head)+' · '+groups[key].length+'</div>'+rows+'</div>';
+      esc(head)+' · '+groups[key].length+
+      '<button type="button" class="gcopy" onclick="cpGroup('+gi+')">Copy all →</button>'+
+      '</div>'+rows+'</div>';
   }).join('');
 }
 
@@ -5987,7 +6329,8 @@ function prodRow(p, i){
           'onkeydown="if(event.key===\'Enter\'){event.preventDefault();addSizePrice('+i+');}">'+
         '<button class="btn btn-ghost btn-sm" onclick="addSizePrice('+i+')">Add</button>'+
       '</div>'+
-      '<button class="btn btn-danger btn-sm" style="margin-top:12px" onclick="removeProduct('+i+')">Remove '+esc(p.name)+'</button>'+
+      '<button class="btn btn-ghost btn-sm" style="margin-top:12px;width:100%" onclick="cpOne('+i+')">Copy '+esc(p.name)+' to other departments…</button>'+
+      '<button class="btn btn-danger btn-sm" style="margin-top:8px" onclick="removeProduct('+i+')">Remove '+esc(p.name)+'</button>'+
     '</div></div>';
 }
 
