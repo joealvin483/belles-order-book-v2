@@ -445,6 +445,18 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
 .savedlines{text-align:left;margin-bottom:19px}
 .savedlines .kv{border-bottom:1px dotted var(--line);padding:7px 0}
 .savedlines .kv:last-child{border-bottom:none;padding-top:9px}
+.heldrow{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);
+  border-radius:10px;margin-bottom:8px;background:#fff}
+.heldrow .h-txt{flex:1;min-width:0;cursor:pointer}
+.heldrow .h-name{font-weight:700;font-size:14px}
+.heldrow .h-meta{font-size:12px;color:var(--ink-2,#666);margin-top:2px}
+.heldrow .h-amt{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+.heldrow button.h-x{border:none;background:none;font-size:20px;line-height:1;cursor:pointer;color:var(--bad)}
+.qeditbar{background:var(--blush);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;margin:0 0 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.qeditbar .qe-txt{flex:1;min-width:180px}
+.qeditbar .qe-ttl{font-weight:700;font-size:14px}
+.qeditbar .qe-sub{font-size:12px;color:var(--ink-2, #666);margin-top:2px}
 .savedbtns{display:flex;flex-direction:column;gap:9px}
 .savedbtns .btn{width:100%}
 /* ---------- login gate ---------- */
@@ -692,6 +704,10 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   .pos .mgrid{display:flex;flex-wrap:wrap;gap:0 8px}
   .pos .mgrid span{white-space:nowrap}
   .pos .foot{font-size:9px;text-align:center;margin-top:7px}
+  .pos .qrbox{text-align:center;margin:6px 0 2px}
+  .pos .qrbox img{width:118px;height:118px;image-rendering:pixelated}
+  .pos .qrid{font-size:8.5px;letter-spacing:.06em;margin-top:1px;font-weight:700}
+  .pos .qrhint{font-size:7.5px;letter-spacing:.04em}
 
   body>.report{display:block!important;color:#000;font-family:var(--sans)}
   .report .rhead{margin-bottom:9px;border-bottom:2px solid #000;padding-bottom:6px}
@@ -746,6 +762,8 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
     <div class="savedlines" id="savedLines"></div>
     <div class="savedbtns">
       <button type="button" class="btn btn-primary" onclick="savedNewOrder()">New order</button>
+      <button type="button" class="btn btn-ghost" id="savedPrintBtn" onclick="savedPrintReceipt()">Print receipt</button>
+      <button type="button" class="btn btn-ghost" id="savedEditBtn" onclick="savedEditSlip()" style="display:none">Correct this slip</button>
       <button type="button" class="btn btn-ghost" onclick="savedViewOrder()">View this order</button>
     </div>
   </div>
@@ -1014,6 +1032,19 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
 
   <!-- =============== SETUP / DATA =============== -->
   <section id="v-quick" class="view">
+    <div class="qeditbar no-print" id="qEditBar" style="display:none">
+      <div class="qe-txt">
+        <div class="qe-ttl">Correcting slip <span id="qEditNo"></span></div>
+        <div class="qe-sub">Change anything below, then press Update slip. The order number, the record and any printed label stay the same.</div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="cancelQuickEdit()">Cancel</button>
+    </div>
+    <div class="card no-print" id="heldCard" style="display:none">
+      <p class="eyebrow">On hold</p>
+      <h3 id="heldTitle">Slips put aside</h3>
+      <p class="sub">Tap one to bring it back to the counter.</p>
+      <div id="heldList"></div>
+    </div>
     <div class="quickgrid">
     <div class="col">
 
@@ -1107,6 +1138,25 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
         <input type="text" id="qCash" inputmode="decimal" oninput="quickBalance()" placeholder="0.00"></div>
       <button type="button" class="btn btn-ghost btn-block btn-sm" onclick="quickFullPayment()">Paying the exact amount</button>
 
+      <button type="button" class="btn btn-ghost btn-block btn-sm" id="qSplitPayBtn"
+        onclick="toggleSplitPay()">+ Part cash, part something else</button>
+      <div id="qSplitPayWrap" style="display:none">
+        <hr class="rule">
+        <label>Second payment</label>
+        <p class="sub" style="margin:0 0 8px">For a customer settling one slip with two methods.</p>
+        <div class="row c2">
+          <div class="field"><label for="qMode2">Method</label>
+            <select id="qMode2" onchange="quickMode2Change()">
+              <option>GCash</option><option>Cash</option><option>Maya</option>
+              <option>Bank transfer</option><option>Card</option>
+              <option>Cheque</option><option>Credit / utang</option><option>Other</option>
+            </select></div>
+          <div class="field"><label for="qCash2">Amount &#8369;</label>
+            <input type="text" id="qCash2" inputmode="decimal" oninput="quickBalance()" placeholder="0.00"></div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-block btn-sm" onclick="quickFillRest()">Put the rest of the balance here</button>
+      </div>
+
       <div id="qProofWrap" style="display:none">
         <hr class="rule">
         <label>GCash proof</label>
@@ -1123,7 +1173,8 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
 
     <div class="sticky-save no-print">
       <div class="btn-row">
-        <button type="button" class="btn btn-primary" style="flex:1" onclick="saveQuickOrder()">Save order</button>
+        <button type="button" class="btn btn-primary" style="flex:1" id="qSaveBtn" onclick="saveQuickOrder()">Save order</button>
+        <button type="button" class="btn btn-ghost" id="qHoldBtn" onclick="holdQuickSlip()">Hold</button>
         <button type="button" class="btn btn-ghost" onclick="clearQuick()">Clear</button>
       </div>
     </div>
@@ -1366,6 +1417,13 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
           </select>
         </div>
         <div class="field">
+          <label for="proofPhotos">GCash proof photos</label>
+          <select id="proofPhotos" onchange="setProofPhotos(this.value)">
+            <option value="on">Also save a copy to Downloads</option>
+            <option value="off">Keep inside the app only</option>
+          </select>
+        </div>
+        <div class="field">
           <label for="backupFormat">File type</label>
           <select id="backupFormat" onchange="setBackupFormat(this.value)">
             <option value="json">JSON — restores into the app</option>
@@ -1380,9 +1438,29 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
         <button class="btn btn-ghost btn-sm" onclick="exportCSV()">Export CSV for Sheets</button>
         <button class="btn btn-ghost btn-sm" onclick="document.getElementById('mergeFile').click()">Merge another tablet</button>
         <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">Restore (replace all)</button>
+        <button class="btn btn-ghost btn-sm" onclick="togglePasteRestore()" id="pasteRestoreBtn">Paste a backup instead</button>
       </div>
-      <input type="file" id="importFile" accept=".json" style="display:none">
-      <input type="file" id="mergeFile" accept=".json" style="display:none">
+      <p class="sub" style="margin:10px 0 0">The backup is in your <b>Downloads</b> folder and is named
+        <b>belles-&hellip;.json</b>. If the picker opens Photos instead of your files, use
+        <b>Paste a backup instead</b>.</p>
+      <div id="pasteRestoreWrap" style="display:none;margin-top:12px">
+        <hr class="rule">
+        <div class="field">
+          <label for="pasteRestore">Paste the backup text</label>
+          <p class="sub" style="margin:0 0 8px">Open the <b>belles-&hellip;.json</b> from the Files app,
+            select all, copy, then paste it here. Nothing is changed until you press a button below.</p>
+          <textarea id="pasteRestore" rows="4" oninput="pasteRestoreInfo()"
+            placeholder="{&quot;orders&quot;:[ &hellip; ]}"
+            style="width:100%;font-family:var(--mono,monospace);font-size:12px"></textarea>
+        </div>
+        <p class="sub" id="pasteRestoreNote" style="margin:0 0 10px"></p>
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" onclick="restoreFromPaste(false)">Restore (replace all)</button>
+          <button class="btn btn-ghost btn-sm" onclick="restoreFromPaste(true)">Merge into this tablet</button>
+        </div>
+      </div>
+      <input type="file" id="importFile" accept="application/json,text/json,text/plain,application/octet-stream,.json,*/*" style="display:none">
+      <input type="file" id="mergeFile" accept="application/json,text/json,text/plain,application/octet-stream,.json,*/*" style="display:none">
       <p class="sub" style="margin:10px 0 0" id="backupInfo"></p>
       <p class="sub" id="mergeReport" style="margin:8px 0 0;display:none"></p>
     </div>
@@ -1446,6 +1524,7 @@ var DB = {
   lastAutoBackupDay: null, paper: '58',
   users: [], lastUser: null, quickPrefix: 'ORD',
   sync: {url:'', secret:'', auto:true, pull:false, lastAt:null, lastPullAt:null, lastMsg:''},
+  held: [],            // slips put aside part-finished, waiting to be picked up again
   cashups: {},         // one cash count per day, keyed yyyy-mm-dd
   listMeta: {},        // when each list entry last changed, for merging
   listGone: {}         // entries deliberately removed, so they stay removed
@@ -2591,7 +2670,7 @@ function quickPreview(){
   if(clash) box.textContent = id + '  ·  already used by ' + clashWho(clash);
 }
 
-var quickMode = 'Cash', quickProof = null, qLines = [];
+var quickMode = 'Cash', quickProof = null, quickProofFile = null, qLines = [];
 
 function initQuick(){
   if($('qDate') && !$('qDate').value) $('qDate').value = ymd(today());
@@ -2600,6 +2679,7 @@ function initQuick(){
   if($('qGender')) $('qGender').value = (DB.lastUsed && DB.lastUsed.gender) || '';
   quickPreview();
   qRenderLines();
+  renderHeld();
   setQuickMode(quickMode);
   setTimeout(function(){ if($('qNum')) $('qNum').focus(); }, 80);
 }
@@ -2770,23 +2850,87 @@ function quickRecalc(manual){
   quickBalance();
 }
 function quickTotal(){ return num($('qTotal').value); }
+
+/* ---------- split payments ----------
+   One slip can be settled with two methods at once — ₱500 in GCash and the rest
+   in cash, say. The first tender is the row that has always been there; the
+   second only exists while the split panel is open. Everything downstream works
+   off quickTenders(), so change, balance, the receipt and the payment log all
+   agree with each other however many methods were used. */
+function qSplitPayOn(){
+  return !!($('qSplitPayWrap') && $('qSplitPayWrap').style.display !== 'none');
+}
+function quickTenders(){
+  var out = [];
+  var a = num($('qCash') ? $('qCash').value : 0);
+  if(a > 0.004) out.push({mode: quickModeLabel(), amt: a, cash: quickMode === 'Cash'});
+  if(qSplitPayOn() && $('qCash2')){
+    var b = num($('qCash2').value), m = $('qMode2') ? $('qMode2').value : 'Cash';
+    if(b > 0.004) out.push({mode: m, amt: b, cash: m === 'Cash'});
+  }
+  return out;
+}
+function quickTendered(){
+  return quickTenders().reduce(function(a,t){ return a + t.amt; }, 0);
+}
+function quickHasCashTender(){
+  return quickTenders().some(function(t){ return t.cash; });
+}
+/* What the till still has to collect: the total, less anything already recorded
+   against this slip on a previous visit. */
+function quickDue(){
+  return Math.max(0, quickTotal() - quickKeptPaid);
+}
 function quickPaid(){
-  var cash = num($('qCash').value), total = quickTotal();
-  return Math.min(cash, total);          // anything above the total is change
+  return Math.min(quickTendered(), quickDue()) + quickKeptPaid;
 }
 function quickChange(){
-  return Math.max(0, num($('qCash').value) - quickTotal());
+  return Math.max(0, quickTendered() - quickDue());   // anything above is change
 }
+function toggleSplitPay(){
+  if(!$('qSplitPayWrap')) return;
+  var on = !qSplitPayOn();
+  $('qSplitPayWrap').style.display = on ? '' : 'none';
+  if($('qSplitPayBtn')) $('qSplitPayBtn').textContent =
+    on ? '− Just one payment method' : '+ Part cash, part something else';
+  if(!on && $('qCash2')) $('qCash2').value = '';
+  syncProofWrap();
+  quickBalance();
+  if(on && $('qCash2')) $('qCash2').focus();
+}
+function quickMode2Change(){ syncProofWrap(); quickBalance(); }
+/* Fill the second tender with whatever the first one did not cover. */
+function quickFillRest(){
+  if(quickTotal() <= 0){ toast('Add the garment first'); $('qProduct').focus(); return; }
+  var due = quickDue();
+  var first = Math.min(num($('qCash').value), due);
+  var rest = due - first;
+  if(rest <= 0.004){ toast('The first payment already covers the slip'); return; }
+  $('qCash2').value = rest.toFixed(2);
+  quickBalance();
+  toast('Second payment — ' + peso(rest));
+}
+
 function quickBalance(){
-  var total = quickTotal(), cash = num($('qCash').value);
+  var total = quickTotal(), tenders = quickTenders();
   var paid = quickPaid(), change = quickChange(), bal = total - paid;
 
   var h = '<div class="kv"><span class="k">Order total</span><span class="v mono">'+peso(total)+'</span></div>';
-  if(cash > 0){
-    h += '<div class="kv"><span class="k">'+(quickMode==='Cash'?'Cash given':'Amount received')+'</span>'+
-         '<span class="v mono">'+peso(cash)+'</span></div>';
+  if(quickKeptPaid > 0.004){
+    h += '<div class="kv"><span class="k">Already paid on this slip</span>'+
+         '<span class="v mono">'+peso(quickKeptPaid)+'</span></div>';
+    h += '<div class="kv"><span class="k">Left to collect now</span>'+
+         '<span class="v mono">'+peso(quickDue())+'</span></div>';
   }
-  if(change > 0 && quickMode === 'Cash'){
+  tenders.forEach(function(t){
+    h += '<div class="kv"><span class="k">'+(t.cash ? 'Cash given' : esc(t.mode)+' received')+'</span>'+
+         '<span class="v mono">'+peso(t.amt)+'</span></div>';
+  });
+  if(tenders.length > 1){
+    h += '<div class="kv"><span class="k">Tendered altogether</span>'+
+         '<span class="v mono">'+peso(quickTendered())+'</span></div>';
+  }
+  if(change > 0 && quickHasCashTender()){
     h += '<div class="kv changerow"><span class="k">CHANGE TO GIVE</span>'+
          '<span class="v mono">'+peso(change)+'</span></div>';
   }
@@ -2800,11 +2944,13 @@ function quickBalance(){
   if($('qTotals')) $('qTotals').innerHTML = h;
 }
 function quickFullPayment(){
-  var total = quickTotal();
-  if(total <= 0){ toast('Add the garment first'); $('qProduct').focus(); return; }
-  $('qCash').value = total.toFixed(2);
+  if(quickTotal() <= 0){ toast('Add the garment first'); $('qProduct').focus(); return; }
+  var due = quickDue();
+  if(due <= 0.004){ toast('This slip is already fully paid'); return; }
+  $('qCash').value = due.toFixed(2);
+  if($('qCash2')) $('qCash2').value = '';
   quickBalance();
-  toast('Exact amount — ' + peso(total));
+  toast('Exact amount — ' + peso(due));
 }
 
 function setQuickMode(m){
@@ -2813,11 +2959,21 @@ function setQuickMode(m){
     b.classList.toggle('on', b.dataset.mode === m);
   });
   $('qOtherWrap').style.display = (m === 'Other') ? '' : 'none';
-  $('qProofWrap').style.display = (m === 'GCash') ? '' : 'none';
   $('qCashLabel').textContent = (m === 'Cash')
     ? 'Cash given by customer ₱' : 'Amount received ₱';
-  if(m !== 'GCash'){ quickProof = null; renderProofBox(); }
+  syncProofWrap();
   quickBalance();
+}
+/* The proof photo belongs to the slip, not to one tender: it is asked for as
+   soon as GCash appears anywhere on it. */
+function quickGCashOn(){
+  if(quickMode === 'GCash') return true;
+  return qSplitPayOn() && $('qMode2') && $('qMode2').value === 'GCash';
+}
+function syncProofWrap(){
+  var on = quickGCashOn();
+  if($('qProofWrap')) $('qProofWrap').style.display = on ? '' : 'none';
+  if(!on && quickProof){ quickProof = null; quickProofFile = null; renderProofBox(); }
 }
 function quickModeLabel(){
   return quickMode === 'Other' ? ($('qOther') ? $('qOther').value : 'Other') : quickMode;
@@ -2832,14 +2988,303 @@ function renderProofBox(){
       '<button type="button" class="btn btn-ghost btn-sm" onclick="clearProof()">Remove</button></div></div>'
     : '<button type="button" class="btn btn-ghost btn-block btn-sm" onclick="$(\'qProofFile\').click()">Take photo of receipt</button>';
 }
-function clearProof(){ quickProof = null; renderProofBox(); }
+function clearProof(){ quickProof = null; quickProofFile = null; renderProofBox(); }
+/* Two sizes are kept from one photo. The small one lives in the app and travels
+   in the JSON backup; the larger one is written out as a file, because the whole
+   point of a proof is being able to read the reference number a month later. */
 function handleProofPhoto(file){
   if(!file) return;
+  quickProofFile = null;
   shrinkImage(file, 620).then(function(img){
     quickProof = img.dataUrl;
     renderProofBox();
     toast('Proof attached');
+    if(DB.saveProofPhotos === false) return;
+    shrinkImage(file, 1400).then(function(big){
+      quickProofFile = big.base64;
+    }).catch(function(){ /* the small one is still attached */ });
   }).catch(function(){ toast('Could not read that photo'); });
+}
+/* belles-proof-ORD142-080526.jpg — the slip number is in the filename so the
+   file can be matched back to the order without opening it. */
+function proofFileName(orderId){
+  return 'belles-proof-' + String(orderId || 'slip').replace(/[^A-Za-z0-9\-_]/g, '') + '.jpg';
+}
+
+/* ---------- putting a slip aside ----------
+   A customer walks off to fetch money, or the next one is already at the
+   counter. The half-finished slip is photographed as-is and parked, so the till
+   is free straight away and nothing has to be remembered or re-keyed. Held
+   slips are not orders: they take no order number, never reach the sheet, and
+   are only ever turned into an order when they come back and are saved. */
+function quickSnapshot(){
+  return {
+    num: $('qNum').value, date: $('qDate').value, phone: $('qPhone').value,
+    school: $('qSchool').value, dept: $('qDept').value,
+    gender: $('qGender') ? $('qGender').value : '',
+    product: $('qProduct').value,
+    sizing: $('qSizing') ? $('qSizing').value : '',
+    sizeUpper: $('qSizeUpper') ? $('qSizeUpper').value : '',
+    sizeLower: $('qSizeLower') ? $('qSizeLower').value : '',
+    bigSize: !!($('qBigSize') && $('qBigSize').checked),
+    splitSize: !!($('qSplitSize') && $('qSplitSize').checked),
+    set: $('qSet') ? $('qSet').value : '1',
+    price: $('qPrice') ? $('qPrice').value : '',
+    addons: (qPickedAddons || []).slice(),
+    lines: JSON.parse(JSON.stringify(qLines || [])),
+    total: $('qTotal').value, totalTouched: !!$('qTotal').dataset.touched,
+    mode: quickMode, other: $('qOther') ? $('qOther').value : '',
+    cash: $('qCash').value,
+    splitPay: qSplitPayOn(),
+    mode2: $('qMode2') ? $('qMode2').value : '',
+    cash2: $('qCash2') ? $('qCash2').value : '',
+    proof: quickProof || null, proofFile: quickProofFile || null
+  };
+}
+function applyQuickSnapshot(sn){
+  resetQuick();
+  $('qNum').value = sn.num || '';
+  $('qDate').value = sn.date || ymd(today());
+  $('qPhone').value = sn.phone || '';
+  fillSelect('qSchool', DB.schools, sn.school || '');
+  $('qSchool').value = sn.school || '';
+  qSchoolChange(false);
+  $('qDept').value = sn.dept || '';
+  qDeptChange();
+  if($('qGender')) $('qGender').value = sn.gender || '';
+
+  qLines = sn.lines || [];
+  qRenderLines();
+
+  if(sn.product){
+    $('qProduct').value = sn.product;
+    quickProductChange();                       // rebuilds sizes, clears add-ons
+    if($('qBigSize'))   $('qBigSize').checked   = !!sn.bigSize;
+    if($('qSplitSize')) $('qSplitSize').checked = !!sn.splitSize;
+    quickToggleSplit(true);
+    if($('qSizing'))    $('qSizing').value    = sn.sizing || '';
+    if($('qSizeUpper')) $('qSizeUpper').value = sn.sizeUpper || '';
+    if($('qSizeLower')) $('qSizeLower').value = sn.sizeLower || '';
+    qPickedAddons = (sn.addons || []).slice();
+    refreshQAddonButtons();
+    if($('qSet'))   $('qSet').value   = sn.set || '1';
+    if($('qPrice')) $('qPrice').value = sn.price || '';
+  }
+
+  applyQuickMode1(sn.mode === 'Other' ? (sn.other || 'Other') : (sn.mode || 'Cash'));
+  $('qCash').value = sn.cash || '';
+  if(sn.splitPay && !qSplitPayOn()) toggleSplitPay();
+  if(sn.splitPay){
+    if($('qMode2')) $('qMode2').value = sn.mode2 || 'GCash';
+    if($('qCash2')) $('qCash2').value = sn.cash2 || '';
+  }
+  quickProof = sn.proof || null;
+  quickProofFile = sn.proofFile || null;
+  syncProofWrap(); renderProofBox();
+
+  // last, because restoring the garment recalculates it
+  $('qTotal').value = sn.total || '';
+  if(sn.totalTouched) $('qTotal').dataset.touched = '1';
+  else delete $('qTotal').dataset.touched;
+
+  quickPreview(); quickBalance();
+}
+function heldTotal(h){
+  var sn = h.snap || {};
+  var t = num(sn.total);
+  if(t) return t;
+  return (sn.lines || []).reduce(function(a,g){ return a + num(g.orderTotal); }, 0);
+}
+function heldWhat(h){
+  var sn = h.snap || {};
+  var names = (sn.lines || []).map(function(g){ return g.productName; });
+  if(sn.product && names.indexOf(sn.product) === -1) names.push(sn.product);
+  names = names.filter(Boolean);
+  if(!names.length) return 'Nothing added yet';
+  return names.length > 1 ? (names[0] + ' + ' + (names.length - 1) + ' more') : names[0];
+}
+function holdQuickSlip(){
+  if(quickEditTid){ toast('Finish or cancel the correction first'); return; }
+  if(!quickHasWork()){ toast('Nothing to put aside yet'); return; }
+  DB.held = DB.held || [];
+  if(DB.held.length >= 20){ toast('20 slips are already on hold — bring one back first'); return; }
+  DB.held.unshift({
+    id: 'h' + Date.now() + Math.floor(Math.random()*1000),
+    at: stamp(), by: currentUser(), snap: quickSnapshot()
+  });
+  save();
+  resetQuick();
+  renderHeld();
+  toast('Put aside — the counter is free');
+}
+function resumeHeld(id){
+  var h = (DB.held || []).filter(function(x){ return x.id === id; })[0];
+  if(!h){ toast('That slip is no longer on hold'); renderHeld(); return; }
+  if(quickEditTid){ toast('Finish or cancel the correction first'); return; }
+  if(quickHasWork() && !confirm('Bring this slip back to the counter?\n\n' +
+      'What is on screen now will be cleared — press Hold first if you still need it.')) return;
+  applyQuickSnapshot(h.snap);
+  DB.held = (DB.held || []).filter(function(x){ return x.id !== id; });
+  save();
+  renderHeld();
+  window.scrollTo(0,0);
+  // the paper number may have been used by somebody else in the meantime
+  var id2 = quickOrderId(String($('qNum').value).replace(/\D/g,''), quickDate());
+  if(id2 && orderIdClash(id2)) toast('Back at the counter — but slip ' + id2 + ' is now taken, change the number');
+  else toast('Back at the counter');
+  if($('qNum')) $('qNum').focus();
+}
+function discardHeld(id){
+  var h = (DB.held || []).filter(function(x){ return x.id === id; })[0];
+  if(!h) return;
+  if(!confirm('Throw away the held slip for paper no. ' + (h.snap && h.snap.num ? h.snap.num : '—') + '?\n\n' +
+              'It has not been saved as an order, so it cannot be got back.')) return;
+  DB.held = (DB.held || []).filter(function(x){ return x.id !== id; });
+  save(); renderHeld();
+  toast('Held slip thrown away');
+}
+function renderHeld(){
+  var card = $('heldCard'), list = $('heldList');
+  if(!card || !list) return;
+  var hs = DB.held || [];
+  card.style.display = hs.length ? '' : 'none';
+  if($('heldTitle')) $('heldTitle').textContent =
+    hs.length + ' slip' + (hs.length === 1 ? '' : 's') + ' put aside';
+  list.innerHTML = hs.map(function(h){
+    var sn = h.snap || {};
+    return '<div class="heldrow">' +
+      '<div class="h-txt" onclick="resumeHeld(\'' + h.id + '\')">' +
+        '<div class="h-name">Paper no. ' + esc(sn.num || '—') +
+          (sn.school ? ' · ' + esc(sn.school) : '') + '</div>' +
+        '<div class="h-meta">' + esc(heldWhat(h)) + ' · held ' + esc(stampNice(h.at)) +
+          (h.by ? ' by ' + esc(h.by) : '') + '</div>' +
+      '</div>' +
+      '<span class="h-amt">' + peso(heldTotal(h)) + '</span>' +
+      '<button type="button" class="h-x" title="Throw away" ' +
+        'onclick="discardHeld(\'' + h.id + '\')">&times;</button>' +
+    '</div>';
+  }).join('');
+}
+
+/* ---------- correcting a slip that is already saved ----------
+   A quick entry is taken at speed, so the number, the size or the tender is
+   sometimes wrong the moment it is saved. Rather than voiding and re-keying,
+   the whole slip is loaded back into this screen and written over in place.
+
+   Two things are deliberately kept: the record IDs, so a pick-up label already
+   printed still scans, and anything the workroom added afterwards — the
+   customer's name, measurements, later part-payments, completion. Only what is
+   on this screen is replaced. */
+var quickEditTid = null;
+var quickKeptPaid = 0;   // money already on this slip that the screen is not re-taking
+
+function renderQuickEditBar(){
+  var on = !!quickEditTid;
+  if($('qEditBar')) $('qEditBar').style.display = on ? '' : 'none';
+  if($('qSaveBtn'))  $('qSaveBtn').textContent  = on ? 'Update slip' : 'Save order';
+  if(on && $('qEditNo')){
+    var ls = ticketLines(quickEditTid);
+    $('qEditNo').textContent = ls.length
+      ? (ls.length > 1 ? ls[0].orderId + '–' + ls[ls.length-1].orderId : ls[0].orderId) : '';
+  }
+}
+/* Payments the quick screen itself took, as opposed to money added later on
+   the order page. Records written before this build have no marker, so a
+   payment stamped at the moment of creation counts as one of ours. */
+function qEntryPayment(rec, p){
+  return p && (p.qEntry === true || (!('qEntry' in p) && p.at === rec.createdAt));
+}
+function applyQuickMode1(label){
+  if(label === 'Cash' || label === 'GCash'){ setQuickMode(label); return; }
+  setQuickMode('Other');
+  if($('qOther')){
+    var found = false;
+    [].forEach.call($('qOther').options, function(op){ if(op.value === label) found = true; });
+    if(found) $('qOther').value = label;
+  }
+}
+function editQuickTicket(tid){
+  var ls = ticketLines(tid);
+  if(!ls.length){ toast('That slip is no longer here'); return; }
+  if(ls.some(function(x){ return !x.quick; })){
+    toast('This one is a full order — edit it from the order page');
+    openOrder(ls[0].id); return;
+  }
+  if(ls.some(function(x){ return x.voided; })){
+    toast('A cancelled slip cannot be corrected'); openOrder(ls[0].id); return;
+  }
+  hideOrderSaved();
+  go('quick');
+  window.scrollTo(0,0);
+  resetQuick();
+  quickEditTid = tid;
+
+  var o = ls[0];
+  $('qNum').value   = String(o.paperNo || o.number || '');
+  $('qDate').value  = o.slipDate || o.dateOrdered || ymd(today());
+  $('qPhone').value = o.phoneNumber || '';
+
+  fillSelect('qSchool', DB.schools, o.companySchool || '');
+  $('qSchool').value = o.companySchool || '';
+  qSchoolChange(false);
+  $('qDept').value = o.department || '';
+  qDeptChange();
+  if($('qGender')) $('qGender').value = o.gender || '';
+
+  // every garment goes into the staged list; the entry row stays empty so a
+  // fresh one can still be added on top
+  qLines = ls.map(function(x){
+    return {
+      productName: x.productName, sizing: x.sizing,
+      sizeUpper: x.sizeUpper || '', sizeLower: x.sizeLower || '',
+      bigSize: !!x.bigSize, set: String(x.set || 1),
+      sellingPrice: num(x.sellingPrice), orderTotal: num(x.orderTotal),
+      addons: (x.addons || []).slice()
+    };
+  });
+  qRenderLines();
+  quickRecalc(true);
+
+  // put the original tender back on screen, grouped by method
+  var byMode = {}, order = [];
+  quickKeptPaid = 0;
+  ls.forEach(function(x){
+    (x.payments || []).forEach(function(p){
+      // money taken after the slip was written stays where it is; the screen
+      // only re-takes the tender it took itself
+      if(!qEntryPayment(x, p)){ quickKeptPaid += num(p.amt); return; }
+      var m = p.mode || 'Cash';
+      if(!(m in byMode)){ byMode[m] = 0; order.push(m); }
+      byMode[m] += num(p.amt);
+    });
+  });
+  if(order.length){
+    applyQuickMode1(order[0]);
+    // a cash tender shows what was handed over, not what was kept
+    var first = byMode[order[0]];
+    if(order[0] === 'Cash' && num(o.cashGiven) > first) first = num(o.cashGiven);
+    $('qCash').value = first.toFixed(2);
+    if(order.length > 1){
+      toggleSplitPay();
+      $('qMode2').value = order[1];
+      $('qCash2').value = byMode[order[1]].toFixed(2);
+    }
+  } else {
+    setQuickMode('Cash');
+  }
+  if(DB.proofs && DB.proofs[o.id]){ quickProof = DB.proofs[o.id]; }
+  syncProofWrap(); renderProofBox();
+
+  renderQuickEditBar();
+  quickPreview(); quickBalance();
+  toast('Correcting slip ' + o.orderId);
+  if($('qNum')) $('qNum').focus();
+}
+function cancelQuickEdit(){
+  if(!quickEditTid) return;
+  if(!confirm('Leave this slip as it was?\n\nNothing you have changed here will be kept.')) return;
+  resetQuick();
+  toast('Left unchanged');
 }
 
 function quickHasWork(){
@@ -2848,12 +3293,16 @@ function quickHasWork(){
   return !qLineEmpty(qCurrentLine());
 }
 function clearQuick(){
+  if(quickEditTid){ cancelQuickEdit(); return; }
   if(quickHasWork() && !confirm('Clear this slip?\n\nAnything typed will be lost.')) return;
   resetQuick();
   toast('Cleared');
 }
 function resetQuick(){
-  ['qNum','qPhone','qPrice','qTotal','qCash'].forEach(function(k){
+  quickEditTid = null; quickKeptPaid = 0; renderQuickEditBar();
+  if($('qSplitPayWrap')) $('qSplitPayWrap').style.display = 'none';
+  if($('qSplitPayBtn')) $('qSplitPayBtn').textContent = '+ Part cash, part something else';
+  ['qNum','qPhone','qPrice','qTotal','qCash','qCash2'].forEach(function(k){
     if($(k)){ $(k).value = ''; delete $(k).dataset.touched; }
   });
   if($('qProduct')) $('qProduct').value = '';
@@ -2861,7 +3310,7 @@ function resetQuick(){
   if($('qSet')) $('qSet').value = '1';
   qPickedAddons = []; refreshQAddonButtons();
   qLines = []; qRenderLines();
-  quickProof = null; renderProofBox(); setQuickMode('Cash');
+  quickProof = null; quickProofFile = null; renderProofBox(); setQuickMode('Cash');
   quickPreview(); quickBalance();
   if($('qNum')) $('qNum').focus();
 }
@@ -2877,7 +3326,12 @@ function saveQuickOrder(){
   }
   var id = quickOrderId(paper, quickDate());
 
-  var clash = orderIdClash(id);
+  // when correcting, the slip must not collide with itself
+  var mine = {};
+  if(quickEditTid) ticketLines(quickEditTid).forEach(function(x){ mine[x.id] = 1; });
+  var clash = DB.orders.filter(function(o){
+    return o.orderId === id && !o.voided && !mine[o.id];
+  })[0] || null;
   if(clash){
     toast('Slip ' + id + ' already belongs to ' + clashWho(clash) + ' — use another number');
     if($('qNum')){
@@ -2898,9 +3352,12 @@ function saveQuickOrder(){
   if(all.some(function(g){ return !num(g.orderTotal); })){ toast('Every garment needs a price'); return; }
 
   var total = quickTotal(), paid = quickPaid(), change = quickChange();
-  var cash = num($('qCash').value), mode = quickModeLabel(), now = stamp();
+  var tenders = quickTenders(), now = stamp();
+  var cash = tenders.reduce(function(a,t){ return a + (t.cash ? t.amt : 0); }, 0);
+  var mode = tenders.length ? tenders.map(function(t){ return t.mode; }).join(' + ')
+                            : quickModeLabel();
 
-  if(paid > 0 && quickMode === 'GCash' && !quickProof){
+  if(paid > 0 && quickGCashOn() && !quickProof){
     toast('Photograph the GCash receipt first');
     $('qProofFile').click();
     return;
@@ -2908,35 +3365,76 @@ function saveQuickOrder(){
 
   var school = $('qSchool').value, dept = $('qDept').value;
   var gender = $('qGender') ? $('qGender').value : '';
-  var tid = 't' + Date.now() + Math.floor(Math.random()*1000);
+
+  // ----- correcting: keep the old shell, take back anything added later -----
+  var editing = !!quickEditTid;
+  var old = editing ? ticketLines(quickEditTid) : [];
+  var keepLater = [], keptSum = 0;   // part-payments recorded after the slip was taken
+  if(editing){
+    old.forEach(function(x){
+      (x.payments || []).forEach(function(p){
+        if(!qEntryPayment(x, p)) keepLater.push({amt:num(p.amt), mode:p.mode||'', at:p.at});
+      });
+    });
+    keepLater.sort(function(a,b){ return String(a.at||'') < String(b.at||'') ? -1 : 1; });
+    keptSum = keepLater.reduce(function(a,p){ return a + num(p.amt); }, 0);
+    var drop = {};
+    old.forEach(function(x){ drop[x.id] = 1; });
+    DB.orders = DB.orders.filter(function(o){ return !drop[o.id]; });
+  }
+
+  var tid = editing ? quickEditTid : ('t' + Date.now() + Math.floor(Math.random()*1000));
   var made = [];
 
   all.forEach(function(g, idx){
+    var was = old[idx] || null;        // same position on the slip as before
     var rec = {
-      id: 'o' + Date.now() + idx + Math.floor(Math.random()*1000),
+      id: was ? was.id : ('o' + Date.now() + idx + Math.floor(Math.random()*1000)),
       orderId: all.length > 1 ? id + '-' + (idx+1) : id,
       paperNo: parseInt(paper,10), slipDate: quickDate(),
       ticketId: tid, lineNo: idx+1, lineCount: all.length,
-      quick: true, needsDetails: true,
-      lastName: '', firstName: '', phoneNumber: phone, emailAddress: '',
+      quick: true,
+      needsDetails: was ? !!was.needsDetails : true,
+      lastName: was ? (was.lastName||'') : '', firstName: was ? (was.firstName||'') : '',
+      phoneNumber: phone, emailAddress: was ? (was.emailAddress||'') : '',
       companySchool: school, department: dept, gender: gender,
-      dateOrdered: quickDate(), dateDue: '', notes: '',
+      dateOrdered: quickDate(),
+      dateDue: was ? (was.dateDue||'') : '', notes: was ? (was.notes||'') : '',
       productName: g.productName, sizing: g.sizing, set: g.set,
       sizeUpper: g.sizeUpper || '', sizeLower: g.sizeLower || '', bigSize: !!g.bigSize,
-      sellingPrice: g.sellingPrice, orderTotal: g.orderTotal, meas: {},
+      sellingPrice: g.sellingPrice, orderTotal: g.orderTotal,
+      meas: was ? (was.meas || {}) : {},
       addons: g.addons || [],
-      block: '', page: '', number: String(parseInt(paper,10)), coder: currentUser(),
-      isReadyMade: false, completedStatus: '', completedTimestamp: '',
-      isReceived: false, receivedTimestamp: '',
+      block: was ? (was.block||'') : '', page: was ? (was.page||'') : '',
+      number: String(parseInt(paper,10)), coder: was ? (was.coder||currentUser()) : currentUser(),
+      isReadyMade: was ? !!was.isReadyMade : false,
+      completedStatus: was ? (was.completedStatus||'') : '',
+      completedTimestamp: was ? (was.completedTimestamp||'') : '',
+      isReceived: was ? !!was.isReceived : false,
+      receivedTimestamp: was ? (was.receivedTimestamp||'') : '',
       amountPaid: 0, balance: num(g.orderTotal), paid: 'No',
-      payments: [], paymentMode: '', log: [], createdAt: now, updatedAt: now
+      payments: [], paymentMode: '',
+      log: was ? (was.log || []) : [],
+      createdAt: was ? (was.createdAt || now) : now, updatedAt: now
     };
     DB.orders.push(rec);
     made.push(rec);
   });
 
-  if(paid > 0) allocatePayment(made, paid, mode, now);
-  if(quickMode === 'Cash' && cash > 0){
+  // the tender on screen, method by method, then anything paid later. The
+  // screen's tender can only fill what the kept payments have not already met.
+  var left = Math.max(0, total - keptSum);
+  tenders.forEach(function(t){
+    var apply = Math.min(t.amt, left);
+    if(apply > 0.004){ allocatePayment(made, apply, t.mode, now); left -= apply; }
+  });
+  made.forEach(function(r){
+    (r.payments || []).forEach(function(p){ p.qEntry = true; });
+  });
+  keepLater.forEach(function(p){
+    if(p.amt > 0.004) allocatePayment(made, p.amt, p.mode, p.at || now);
+  });
+  if(cash > 0){
     made[0].cashGiven = cash;
     made[0].changeGiven = change;
   }
@@ -2944,18 +3442,26 @@ function saveQuickOrder(){
     DB.proofs = DB.proofs || {};
     DB.proofs[made[0].id] = quickProof;
     made.forEach(function(r){ r.hasProof = true; });
+    // a copy on the file system outlives the app being uninstalled
+    if(quickProofFile && DB.saveProofPhotos !== false){
+      saveImageFile(proofFileName(made[0].orderId), quickProofFile, true);
+      made[0].proofFile = proofFileName(made[0].orderId);
+    }
   }
 
+  var payWords = tenders.length
+    ? tenders.map(function(t){ return peso(t.amt) + ' by ' + t.mode; }).join(' and ')
+    : '';
   made.forEach(function(rec){
-    logEvent(rec, 'Quick entry from slip ' + id +
+    logEvent(rec, (editing ? 'Slip ' + id + ' corrected' : 'Quick entry from slip ' + id) +
       (made.length > 1 ? ' — garment ' + rec.lineNo + ' of ' + made.length : '') +
       ' — ' + rec.productName + (rec.sizing ? ' (' + rec.sizing + ')' : '') +
       ', order total ' + peso(total) +
-      (paid > 0 ? ', ' + peso(paid) + ' paid by ' + mode +
-          (change > 0 ? ' (cash ' + peso(cash) + ', change ' + peso(change) + ')' : '') +
+      (paid > 0 ? ', ' + payWords +
+          (change > 0 ? ' (change ' + peso(change) + ')' : '') +
           (quickProof ? ', proof photo attached' : '')
         : ', nothing paid yet') +
-      '. Customer details still to be added.', true);
+      (rec.lastName || rec.firstName ? '.' : '. Customer details still to be added.'), true);
   });
 
   DB.lastUsed = DB.lastUsed || {};
@@ -2963,16 +3469,18 @@ function saveQuickOrder(){
   DB.lastUsed.department = dept;
   DB.lastUsed.gender = gender;
 
-  save(); queueSync(); maybeAutoBackup(made.length);
+  save(); queueSync();
+  if(!editing) maybeAutoBackup(made.length);
   updateQuickBadge();
-  toast(change > 0 ? 'Saved ' + id + ' · change ' + peso(change) : 'Saved ' + id);
+  toast(editing ? 'Slip ' + id + ' updated'
+                : (change > 0 ? 'Saved ' + id + ' · change ' + peso(change) : 'Saved ' + id));
 
   // the school and department stay for the next customer in the same queue
   resetQuick();
   fillSelect('qSchool', DB.schools, school);
   qSchoolChange(true);
   if($('qGender')) $('qGender').value = gender;
-  showOrderSaved(made, paid, {quick:true, change:change});
+  showOrderSaved(made, paid, {quick:true, change:change, edited:editing, tenders:tenders});
 }
 
 /* ---------- the day book ----------
@@ -4699,19 +5207,25 @@ function fillForm(o){
    The form clears itself and this sheet stays up until the counter says what
    to do next, so nobody is left wondering whether the order went through. */
 var savedOrderId = null;
+var savedTicketId = null;
 var savedMode = 'order';        // which screen to go back to for the next one
 function showOrderSaved(made, paidNow, opts){
   opts = opts || {};
   if(!$('savedSheet')) { openOrder(made[0].id); return; }
   savedOrderId = made[0].id;
+  savedTicketId = made[0].ticketId || null;
   savedMode = opts.quick ? 'quick' : 'order';
   var total = made.reduce(function(a,o){ return a + num(o.orderTotal); }, 0);
   var bal = total - num(paidNow);
   var many = made.length > 1;
 
-  $('savedTitle').textContent = opts.quick
-    ? (many ? (made.length + ' garments on slip saved') : 'Slip saved')
-    : (many ? (made.length + ' garments saved') : 'Order saved');
+  $('savedTitle').textContent = opts.edited
+    ? (many ? (made.length + ' garments on slip updated') : 'Slip updated')
+    : (opts.quick
+      ? (many ? (made.length + ' garments on slip saved') : 'Slip saved')
+      : (many ? (made.length + ' garments saved') : 'Order saved'));
+  if($('savedEditBtn')) $('savedEditBtn').style.display =
+    (opts.quick && savedTicketId) ? '' : 'none';
   $('savedNo').textContent = many
     ? (made[0].orderId + ' – ' + made[made.length-1].orderId)
     : made[0].orderId;
@@ -4727,12 +5241,17 @@ function showOrderSaved(made, paidNow, opts){
       '<span class="v mono">' + peso(total) + '</span></div>' +
     '<div class="kv"><span class="k">Paid</span>' +
       '<span class="v mono">' + peso(paidNow) + '</span></div>' +
+    ((opts.tenders && opts.tenders.length > 1)
+      ? opts.tenders.map(function(t){
+          return '<div class="kv"><span class="k" style="padding-left:12px">' + esc(t.mode) +
+                 '</span><span class="v mono">' + peso(t.amt) + '</span></div>'; }).join('')
+      : '') +
     (num(opts.change) > 0
       ? '<div class="kv"><span class="k">Change</span>' +
         '<span class="v mono">' + peso(opts.change) + '</span></div>' : '') +
     '<div class="kv"><span class="k"><b>' + (bal > 0 ? 'Balance' : 'Fully paid') + '</b></span>' +
       '<span class="v mono"><b>' + peso(bal) + '</b></span></div>' +
-    (opts.quick
+    (opts.quick && !(made[0].lastName || made[0].firstName)
       ? '<p class="sub" style="margin:11px 0 0">Measurements and the customer\'s name still to be filled in.</p>'
       : '');
 
@@ -4757,6 +5276,12 @@ function savedNewOrder(){
 function savedViewOrder(){
   hideOrderSaved();
   if(savedOrderId) openOrder(savedOrderId);
+}
+function savedPrintReceipt(){
+  if(savedOrderId) printOrder(savedOrderId);
+}
+function savedEditSlip(){
+  if(savedTicketId) editQuickTicket(savedTicketId);
 }
 function resetForm(quiet){
   $('orderForm').reset();
@@ -4997,13 +5522,22 @@ function renderFind(){
 $('searchInput').addEventListener('input', renderFind);
 $('searchFilter').addEventListener('change', renderFind);
 
-/* Other orders from the same customer — matched on phone, else on name. */
+/* Other orders from the same customer — matched on phone, else on name.
+   A quick slip that has neither yet belongs to nobody in particular, so it must
+   match nobody: two blank names are not the same person. */
 function customerHistory(o){
+  var phone = String(o.phoneNumber||'').trim();
+  var last  = String(o.lastName ||'').trim().toLowerCase();
+  var first = String(o.firstName||'').trim().toLowerCase();
+  var named = !!(last || first);
+  if(!phone && !named) return [];
   return DB.orders.filter(function(x){
     if(x.id === o.id) return false;
-    if(o.phoneNumber && x.phoneNumber) return x.phoneNumber === o.phoneNumber;
-    return String(x.lastName||'').toLowerCase() === String(o.lastName||'').toLowerCase() &&
-           String(x.firstName||'').toLowerCase() === String(o.firstName||'').toLowerCase();
+    var xphone = String(x.phoneNumber||'').trim();
+    if(phone && xphone) return xphone === phone;
+    if(!named) return false;
+    return String(x.lastName ||'').trim().toLowerCase() === last &&
+           String(x.firstName||'').trim().toLowerCase() === first;
   }).sort(function(a,b){ return String(a.dateOrdered||'') < String(b.dateOrdered||'') ? 1 : -1; });
 }
 
@@ -5214,7 +5748,8 @@ function posReceipt(o){
   h += posLine('Date', nice(o.dateOrdered));
   if(o.dateDue) h += posLine('Ready by', nice(o.dateDue));
   h += '<div class="rule"></div>';
-  h += '<div class="wrap2"><b>' + esc(o.firstName + ' ' + o.lastName) + '</b></div>';
+  var who = String((o.firstName || '') + ' ' + (o.lastName || '')).trim();
+  h += '<div class="wrap2"><b>' + (who ? esc(who) : 'Walk-in — name to follow') + '</b></div>';
   if(o.phoneNumber)   h += '<div class="wrap2">' + esc(o.phoneNumber) + '</div>';
   if(o.emailAddress)  h += '<div class="wrap2">' + esc(o.emailAddress) + '</div>';
   if(o.companySchool) h += '<div class="wrap2">' + esc(o.companySchool) + '</div>';
@@ -5231,10 +5766,35 @@ function posReceipt(o){
   });
   h += '<div class="rule"></div>';
   h += posLine('Total', peso(tt.total));
+
+  // every tender on its own line, so a split payment reads back correctly
+  var byMode = {}, seen = [];
+  ls.forEach(function(x){
+    (x.payments || []).forEach(function(p){
+      var m = p.mode || 'Payment';
+      if(!(m in byMode)){ byMode[m] = 0; seen.push(m); }
+      byMode[m] += num(p.amt);
+    });
+  });
+  if(seen.length > 1){
+    seen.forEach(function(m){ h += posLine('  ' + m, peso(byMode[m])); });
+  }
   h += posLine('Paid', peso(tt.paid));
+  var cashIn = num(ls[0] && ls[0].cashGiven), chg = num(ls[0] && ls[0].changeGiven);
+  if(cashIn > 0 && chg > 0){
+    h += posLine('Cash given', peso(cashIn));
+    h += posLine('Change', peso(chg));
+  }
   h += '<div class="rule solid"></div>';
   h += posLine('BALANCE', peso(tt.balance), true);
   if(o.notes){ h += '<div class="rule"></div><div class="wrap2">' + esc(o.notes) + '</div>'; }
+
+  // the same code that is on the pick-up label, so this slip can be scanned
+  // straight off the customer's copy at hand-off
+  h += '<div class="rule"></div>';
+  h += '<div class="qrbox"><img src="' + orderQRUrl(o, 6) + '" alt="Order code">' +
+       '<div class="qrid">' + esc(o.orderId) + '</div>' +
+       '<div class="qrhint">Scan at pick-up</div></div>';
   h += '<div class="rule"></div>';
   h += '<div class="foot">' + (tt.balance > 0
         ? 'Please settle the balance on pick-up.' : 'Fully paid. Thank you!') +
@@ -5403,6 +5963,9 @@ function openOrder(id){
   '<div id="receiptPanel" data-open="0" style="grid-column:1/-1"></div>'+
   '<div class="btn-row no-print" style="margin-bottom:24px">'+
     '<button class="btn btn-primary btn-sm" onclick="editOrder(\''+o.id+'\')">Edit order</button>'+
+    (o.quick && !o.voided && o.ticketId
+      ? '<button class="btn btn-ghost btn-sm" onclick="editQuickTicket(\''+o.ticketId+'\')">Correct slip</button>'
+      : '')+
     '<button class="btn btn-ghost btn-sm" onclick="correctOrder(\''+o.id+'\')">Correct</button>'+
     (o.conflict ? '<button class="btn btn-ghost btn-sm" onclick="clearConflict(\''+o.id+'\')">Mark reviewed</button>' : '')+
     '<button class="btn btn-ghost btn-sm" onclick="toggleReceipt(\''+o.id+'\')">Send receipt</button>'+
@@ -5523,7 +6086,8 @@ function renderDue(){
   if($('dueActions')) $('dueActions').style.display = anyPending ? '' : 'none';
 }
 function updateQuickBadge(){
-  var n = DB.orders.filter(function(o){ return o.needsDetails; }).length;
+  var n = DB.orders.filter(function(o){ return o.needsDetails; }).length +
+          (DB.held || []).length;      // a slip on hold is unfinished work too
   var btn = document.querySelector('#nav button[data-v="quick"]');
   if(!btn) return;
   var b = btn.querySelector('.badge');
@@ -5763,6 +6327,7 @@ function renderSetup(){
   renderDevice();
   renderStorage();
   if($('autoBackup')) $('autoBackup').value = DB.autoBackup || 'every';
+  if($('proofPhotos')) $('proofPhotos').value = (DB.saveProofPhotos === false) ? 'off' : 'on';
   if($('backupFormat')){
     var fmt = DB.backupFormat || 'json';
     $('backupFormat').value = fmt;
@@ -6646,6 +7211,13 @@ function renderStorage(){
 }
 
 /* ---------- automatic backup ---------- */
+function setProofPhotos(v){
+  DB.saveProofPhotos = (v !== 'off');
+  save();
+  toast(DB.saveProofPhotos
+    ? 'Proof photos will also be saved to Downloads'
+    : 'Proof photos will stay inside the app');
+}
 function setAutoBackup(v){
   DB.autoBackup = v; save(); renderLists();
   toast(v==='off' ? 'Automatic backup turned off'
@@ -6698,6 +7270,34 @@ function download(name, text, type){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
 }
+/* download() base64-encodes a *string*. A photo is already bytes, so it needs
+   its own path or the JPEG comes out mangled. */
+function b64ToBlob(b64, mime){
+  var bin = atob(b64), arr = new Uint8Array(bin.length);
+  for(var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], {type: mime || 'image/jpeg'});
+}
+function saveImageFile(name, b64, quiet){
+  if(!b64) return false;
+  var native = nativeApp();
+  if(native && native.saveFile){
+    try{
+      native.saveFile(name, b64, 'image/jpeg');
+      if(!quiet) toast('Proof photo saved to Downloads');
+      return true;
+    }catch(e){ /* fall through to the browser way */ }
+  }
+  try{
+    var url = URL.createObjectURL(b64ToBlob(b64, 'image/jpeg'));
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+    if(!quiet) toast('Proof photo saved to Downloads');
+    return true;
+  }catch(e){ return false; }
+}
+
 /* Receipts hand off to Messages, WhatsApp, Viber and so on. */
 function openExternal(url){
   var native = nativeApp();
@@ -6757,7 +7357,7 @@ function readBackupFile(input, handler){
     e.target.value = '';
   });
 }
-readBackupFile($('importFile'), function(d){
+function doRestoreReplace(d){
   if(!confirm('Replace everything on this tablet with the backup?\n\n' +
               DB.orders.length + ' orders here will be deleted and ' + d.orders.length +
               ' from the file will take their place.\n\nTo combine two tablets instead, cancel and use Merge another tablet.')) return;
@@ -6766,7 +7366,56 @@ readBackupFile($('importFile'), function(d){
   if(myDevice) DB.device = myDevice;      // keep this tablet's own code
   save(); refreshDropdowns(); renderLists(); renderDevice(); updateDueBadge(); updateQuickBadge();
   toast('Restored '+d.orders.length+' orders');
-});
+}
+readBackupFile($('importFile'), doRestoreReplace);
+
+/* ---------- restoring without the file picker ----------
+   Android's chooser cannot always be talked into showing a .json, so the whole
+   backup can be pasted in as text instead. Same checks, same outcome. */
+function togglePasteRestore(){
+  var box = $('pasteRestoreWrap'); if(!box) return;
+  var on = box.style.display === 'none';
+  box.style.display = on ? '' : 'none';
+  if($('pasteRestoreBtn')) $('pasteRestoreBtn').textContent =
+    on ? 'Hide the paste box' : 'Paste a backup instead';
+  if(on && $('pasteRestore')) $('pasteRestore').focus();
+}
+function parsePastedBackup(quiet){
+  var t = $('pasteRestore') ? String($('pasteRestore').value || '').trim() : '';
+  if(!t) return null;
+  // a copied file sometimes arrives with stray text around the JSON
+  var a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if(a > 0 || (b > -1 && b < t.length - 1)){ if(a > -1 && b > a) t = t.slice(a, b + 1); }
+  var d = null;
+  try{ d = JSON.parse(t); }catch(e){ return null; }
+  if(!d || !Array.isArray(d.orders)) return null;
+  return d;
+}
+function pasteRestoreInfo(){
+  var note = $('pasteRestoreNote'); if(!note) return;
+  var raw = $('pasteRestore') ? String($('pasteRestore').value || '').trim() : '';
+  if(!raw){ note.textContent = ''; return; }
+  var d = parsePastedBackup(true);
+  note.textContent = d
+    ? ('Looks right — ' + d.orders.length + ' order' + (d.orders.length === 1 ? '' : 's') +
+       ' in this backup' + (d.device && d.device.name ? ' from ' + d.device.name : '') + '.')
+    : 'Not readable yet — make sure the whole file was copied, from the first { to the last }.';
+}
+function restoreFromPaste(merge){
+  var raw = $('pasteRestore') ? String($('pasteRestore').value || '').trim() : '';
+  if(!raw){ toast('Paste the backup text first'); if($('pasteRestore')) $('pasteRestore').focus(); return; }
+  var d = parsePastedBackup();
+  if(!d){ toast('That is not a Belle\u2019s backup — copy the whole file and try again'); return; }
+  if(merge){
+    if(!confirm('Merge ' + d.orders.length + ' orders into this tablet?\n\n' +
+                'Nothing here is deleted. Orders already on both are kept at whichever version was edited last.')) return;
+    mergeBackup(d);
+  } else {
+    doRestoreReplace(d);
+  }
+  if($('pasteRestore')) $('pasteRestore').value = '';
+  pasteRestoreInfo();
+}
 readBackupFile($('mergeFile'), function(d, name){
   var from = (d.device && d.device.name) ? d.device.name : name;
   if(!confirm('Merge ' + d.orders.length + ' orders from ' + from + ' into this tablet?\n\n' +
