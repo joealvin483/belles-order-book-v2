@@ -153,7 +153,13 @@ input:required:invalid:not(:placeholder-shown){border-color:#E7B7B2}
 .m input{
   border:none;border-radius:0;padding:2px 0;min-height:34px;font-size:21px;font-weight:500;
   background:transparent;text-align:left;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;
+  width:100%;
 }
+/* A cell is a third of the row, so 7.5-14-5.5 will not fit at full size. The
+   text steps down rather than being cut off half way through. */
+.m input.fit-6{font-size:18px}
+.m input.fit-8{font-size:16px;letter-spacing:-0.02em}
+.m input.fit-10{font-size:14px;letter-spacing:-0.02em}
 .m input:focus{box-shadow:none}
 .m input:focus{outline:none;box-shadow:inset 0 -2px 0 var(--rose)}
 .m input::placeholder{color:#DCC6CD;font-size:14px;letter-spacing:.02em}
@@ -507,15 +513,7 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
 .paytick{display:inline-flex;align-items:center;gap:5px;margin-left:10px;font-size:12px;cursor:pointer}
 .paytick .ok{color:var(--ok)}
 .paytick .bad{color:var(--bad)}
-.mwrap{position:relative;display:block}
-.mwrap input{width:100%;padding-right:34px}
-.dashkey{
-  position:absolute;right:4px;top:50%;transform:translateY(-50%);
-  width:26px;height:26px;line-height:1;padding:0;border-radius:7px;
-  border:1px solid var(--line);background:var(--paper-2,#F6F1EE);
-  font-size:17px;font-weight:700;color:var(--ink-2,#666);cursor:pointer;
-}
-.dashkey:active{background:var(--blush)}
+.m input{width:100%}
 .pill.entry-q{background:#EFE7F5;color:#5B3E73}
 .pill.entry-f{background:#E7EFF5;color:#2F5670}
 .savedbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
@@ -2046,6 +2044,19 @@ function formatMeasure(v, seg){
 
 /* Puts a dash where the caret is and hands the field straight back, so the
    keypad never closes and the next number can be typed immediately. */
+/* Shrinks the type just enough that the whole measurement stays readable. */
+function fitMeasure(el){
+  if(!el) return;
+  var n = String(el.value || '').length;
+  el.classList.remove('fit-6','fit-8','fit-10');
+  if(n >= 10)     el.classList.add('fit-10');
+  else if(n >= 8) el.classList.add('fit-8');
+  else if(n >= 6) el.classList.add('fit-6');
+}
+function fitAllMeasures(){
+  MEAS.forEach(function(m){ fitMeasure($('m_' + m.k)); });
+}
+
 function insertDash(id){
   var el = $(id);
   if(!el) return;
@@ -2071,16 +2082,8 @@ function insertDash(id){
 function buildTape(){
   $('tapeGrid').innerHTML = MEAS.map(function(m){
     var ph = m.seg === 3 ? 'xx-xx-xx' : (m.seg === 2 ? 'xx-xx' : 'xx');
-    // Android's number pad has no dash key, so the field carries its own.
-    // Without it a separator simply cannot be typed on the tablet.
     return '<div class="m"><label for="m_'+m.k+'">'+m.label+'</label>'+
-           '<div class="mwrap">'+
-             '<input type="text" id="m_'+m.k+'" inputmode="decimal" placeholder="'+ph+'">'+
-             (m.seg > 1
-               ? '<button type="button" class="dashkey" tabindex="-1" title="Add a dash" '+
-                 'onclick="insertDash(\'m_'+m.k+'\')">&#8211;</button>'
-               : '')+
-           '</div>'+
+           '<input type="text" id="m_'+m.k+'" inputmode="decimal" placeholder="'+ph+'">'+
            '<div class="hint">'+m.hint+'</div></div>';
   }).join('');
 
@@ -2104,6 +2107,7 @@ function buildTape(){
          strips every dash the moment it is typed on the tablet, while a desktop
          keyboard works fine. */
       if(e && String(e.data || '').indexOf('-') > -1) manual = true;
+      fitMeasure(el);
       var shrinking = el.value.length < prevLen;
       prevLen = el.value.length;
       if(m.seg <= 1 || manual) return;
@@ -2115,6 +2119,7 @@ function buildTape(){
         el.value = next;
         try{ el.setSelectionRange(next.length, next.length); }catch(_){}
         prevLen = next.length;
+        fitMeasure(el);
       }
     });
 
@@ -2127,6 +2132,7 @@ function buildTape(){
                         : formatMeasure(el.value.replace(/[^\d.]/g, ''), m.seg);
       prevLen = el.value.length;
       manual = el.value.indexOf('-') > -1;
+      fitMeasure(el);
     });
   });
 }
@@ -2641,6 +2647,7 @@ function clearGarmentFields(){
   ['block','page','number','coder'].forEach(function(k){ $(k).value = ''; });
   $('isReadyMade').checked = false;
   MEAS.forEach(function(m){ $('m_'+m.k).value = ''; });
+  fitAllMeasures();
   totalDirty = false;
   refreshProductChoices('');
   fillSizes('');
@@ -5462,7 +5469,7 @@ function applyScan(){
     var cb = $('sc_m_'+m.k); if(!cb || !cb.checked) return;
     var v = $('sv_m_'+m.k).value.trim();
     if(!v) return;
-    $('m_'+m.k).value = formatMeasure(v, m.seg); applied++;
+    $('m_'+m.k).value = formatMeasure(v, m.seg); fitMeasure($('m_'+m.k)); applied++;
   });
 
   recalc();
@@ -5962,6 +5969,7 @@ function fillForm(o){
   $('dateDue').value = o.dateDue||'';
   $('notes').value = o.notes||'';
   MEAS.forEach(function(m){ $('m_'+m.k).value = (o.meas&&o.meas[m.k])||''; });
+  fitAllMeasures();
   syncCompleted(o.completedStatus||'');
   $('isReceived').checked = !!o.isReceived;
   syncReceived();
