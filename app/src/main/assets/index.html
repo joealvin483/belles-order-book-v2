@@ -426,25 +426,65 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
 /* ---------- order saved confirmation ---------- */
 .saved{
   position:fixed;inset:0;z-index:210;background:rgba(42,26,32,.42);
-  display:none;align-items:center;justify-content:center;padding:22px;
+  display:none;align-items:center;justify-content:center;padding:16px;
 }
 .saved.on{display:flex}
+/* Landscape by default: slip on the left, what-next on the right, so a 10in
+   tablet shows the whole thing without a scrollbar. */
 .savedbox{
-  width:100%;max-width:360px;background:var(--paper);border-radius:16px;
-  padding:26px 22px 20px;text-align:center;box-shadow:0 18px 44px rgba(42,26,32,.22);
+  display:flex;gap:20px;align-items:stretch;
+  width:100%;max-width:760px;max-height:calc(100vh - 32px);
+  background:var(--paper);border-radius:16px;
+  padding:18px;box-shadow:0 18px 44px rgba(42,26,32,.22);
 }
+.savedpaper{
+  flex:0 0 300px;background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:14px 12px;overflow:hidden;display:flex;justify-content:center;
+}
+.savedside{
+  flex:1;min-width:0;display:flex;flex-direction:column;text-align:left;
+}
+.savedhead{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .savedtick{
-  width:52px;height:52px;margin:0 auto 14px;border-radius:50%;
-  background:var(--ok);color:#fff;font-size:27px;line-height:52px;font-weight:700;
+  flex:0 0 auto;width:42px;height:42px;border-radius:50%;
+  background:var(--ok);color:#fff;font-size:22px;line-height:42px;font-weight:700;text-align:center;
 }
-.savedbox h4{font-family:var(--serif);font-size:20px;margin:0 0 3px}
+.savedbox h4{font-family:var(--serif);font-size:19px;margin:0}
 .savedbox .savedno{
-  font-family:var(--posmono);font-size:13px;letter-spacing:.08em;
-  color:var(--rose-deep);margin:0 0 15px;
+  font-family:var(--posmono);font-size:12.5px;letter-spacing:.08em;
+  color:var(--rose-deep);margin:2px 0 0;
 }
-.savedlines{text-align:left;margin-bottom:19px}
-.savedlines .kv{border-bottom:1px dotted var(--line);padding:7px 0}
-.savedlines .kv:last-child{border-bottom:none;padding-top:9px}
+.savedlines{text-align:left;margin-bottom:10px}
+.savedlines .kv{border-bottom:1px dotted var(--line);padding:5px 0;font-size:13.5px}
+.savedlines .kv:last-child{border-bottom:none}
+.savedhint{font-size:12px;color:var(--ink-2,#666);margin:0 0 12px}
+
+/* the printed slip, shown on screen */
+.posview{
+  font-family:var(--posmono);font-size:10.5px;line-height:1.32;color:#000;
+  width:100%;max-width:276px;transform-origin:top center;
+}
+.posview .c{text-align:center}
+.posview .shop{font-size:13px;font-weight:700;letter-spacing:.06em;text-align:center}
+.posview .tag{font-size:9px;letter-spacing:.12em;text-align:center}
+.posview .rule{border-top:1px dashed #000;margin:5px 0}
+.posview .rule.solid{border-top:1px solid #000}
+.posview .ln{display:flex;justify-content:space-between;gap:6px}
+.posview .ln b{font-weight:700}
+.posview .big{font-size:12.5px;font-weight:700}
+.posview .wrap2{word-break:break-word}
+.posview .mgrid{display:flex;flex-wrap:wrap;gap:0 8px}
+.posview .foot{font-size:9px;text-align:center;margin-top:7px}
+.posview .qrbox{text-align:center;margin:6px 0 2px}
+.posview .qrbox img{width:104px;height:104px;image-rendering:pixelated}
+.posview .qrid{font-size:8.5px;letter-spacing:.06em;margin-top:1px;font-weight:700}
+.posview .qrhint{font-size:7.5px;letter-spacing:.04em}
+
+/* narrow phones: stack, and let it scroll rather than clip */
+@media (max-width:700px){
+  .savedbox{flex-direction:column;max-width:380px;overflow:auto}
+  .savedpaper{flex:0 0 auto}
+}
 .heldrow{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);
   border-radius:10px;margin-bottom:8px;background:#fff}
 .heldrow .h-txt{flex:1;min-width:0;cursor:pointer}
@@ -467,8 +507,9 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
 .paytick{display:inline-flex;align-items:center;gap:5px;margin-left:10px;font-size:12px;cursor:pointer}
 .paytick .ok{color:var(--ok)}
 .paytick .bad{color:var(--bad)}
-.savedbtns{display:flex;flex-direction:column;gap:9px}
-.savedbtns .btn{width:100%}
+.savedbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
+.savedbtns .btn{flex:1 1 calc(50% - 4px);min-width:128px}
+.savedbtns .btn-primary{flex:1 1 100%}
 /* ---------- login gate ---------- */
 .gate{
   position:fixed;inset:0;z-index:200;background:var(--canvas);
@@ -766,15 +807,27 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
 
 <div class="saved" id="savedSheet">
   <div class="savedbox">
-    <div class="savedtick">&#10003;</div>
-    <h4 id="savedTitle">Order saved</h4>
-    <p class="savedno" id="savedNo"></p>
-    <div class="savedlines" id="savedLines"></div>
-    <div class="savedbtns">
-      <button type="button" class="btn btn-primary" onclick="savedNewOrder()">New order</button>
-      <button type="button" class="btn btn-ghost" id="savedPrintBtn" onclick="savedPrintReceipt()">Print receipt</button>
-      <button type="button" class="btn btn-ghost" id="savedEditBtn" onclick="savedEditSlip()" style="display:none">Correct this slip</button>
-      <button type="button" class="btn btn-ghost" onclick="savedViewOrder()">View this order</button>
+    <!-- left: the slip itself, big enough for the customer to photograph -->
+    <div class="savedpaper" id="savedPaperWrap">
+      <div class="posview" id="savedReceipt"></div>
+    </div>
+    <!-- right: what happened, and what to do next -->
+    <div class="savedside">
+      <div class="savedhead">
+        <div class="savedtick">&#10003;</div>
+        <div>
+          <h4 id="savedTitle">Order saved</h4>
+          <p class="savedno" id="savedNo"></p>
+        </div>
+      </div>
+      <div class="savedlines" id="savedLines"></div>
+      <p class="savedhint">Let the customer photograph the slip before you close this.</p>
+      <div class="savedbtns">
+        <button type="button" class="btn btn-primary" onclick="savedNewOrder()">New slip</button>
+        <button type="button" class="btn btn-ghost" id="savedPrintBtn" onclick="savedPrintReceipt()">Print receipt</button>
+        <button type="button" class="btn btn-ghost" id="savedEditBtn" onclick="savedEditSlip()" style="display:none">Correct slip</button>
+        <button type="button" class="btn btn-ghost" onclick="savedViewOrder()">View this order</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2076,7 +2129,28 @@ function refreshProductChoices(keep){
    A product belongs to a school or company. The same name can exist for
    several schools at different prices. Leaving school blank makes it
    available to everyone. */
-var DEFAULT_SIZES = ['XXS','XS','S','M','L','XL','XXL'];
+var DEFAULT_SIZES = ['XS','S','M','L','XL','2XL','3XL'];
+
+/* The shop writes 2XL and 3XL. Older entries used XXL/XXXL, and some were
+   banded as S/M, L/XL, 2XL/3XL. sizeCanon() maps any of those onto the ladder
+   so one garment cannot sit under two different names. */
+var SIZE_ALIASES = {
+  'XXS':'XS', 'XXL':'2XL', 'XXXL':'3XL', 'XXXXL':'4XL',
+  '2XL/3XL':'2XL', 'S/M':'S', 'L/XL':'L', 'XS/S':'XS', 'M/L':'M'
+};
+function sizeCanon(z){
+  var k = String(z == null ? '' : z).trim().toUpperCase().replace(/\s+/g,'');
+  if(!k) return '';
+  if(SIZE_ALIASES[k]) return SIZE_ALIASES[k];
+  return k;
+}
+/* Where a size sits on the ladder, for sorting. Unknowns go last. */
+function sizeRank(z){
+  var i = DEFAULT_SIZES.indexOf(sizeCanon(z));
+  if(i > -1) return i;
+  if(sizeCanon(z) === '4XL') return DEFAULT_SIZES.length;
+  return 99;
+}
 
 /* The catalogue is a hierarchy: school or company → department → garment.
    Blanks widen the reach, so a product with no department belongs to the whole
@@ -2792,8 +2866,10 @@ function quickProductChange(){
   if($('qSizeLower')) $('qSizeLower').value = '';
   var p = productFor($('qProduct').value, $('qSchool').value, $('qDept').value);
   var sizes = (p && p.sizes && p.sizes.length)
-    ? p.sizes.map(function(z){ return z.size; })
-    : DEFAULT_SIZES;
+    ? p.sizes.map(function(z){ return sizeCanon(z.size); })
+        .filter(function(z, i, a){ return z && a.indexOf(z) === i; })
+        .sort(function(a,b){ return sizeRank(a) - sizeRank(b); })
+    : DEFAULT_SIZES.slice();
   $('qSizing').innerHTML = '<option value=""></option>' + sizes.map(function(z){
     return '<option value="'+esc(z)+'">'+esc(z)+'</option>'; }).join('');
   quickSyncOptions(true);
@@ -5818,6 +5894,7 @@ function showOrderSaved(made, paidNow, opts){
   if(!$('savedSheet')) { openOrder(made[0].id); return; }
   savedOrderId = made[0].id;
   savedTicketId = made[0].ticketId || null;
+  renderSavedReceipt(made[0]);
   savedMode = opts.quick ? 'quick' : 'order';
   var total = made.reduce(function(a,o){ return a + num(o.orderTotal); }, 0);
   var bal = total - num(paidNow);
@@ -5863,6 +5940,7 @@ function showOrderSaved(made, paidNow, opts){
   $('savedSheet').querySelector('.btn-primary').focus();
 }
 function hideOrderSaved(){
+  if($('savedReceipt')){ $('savedReceipt').innerHTML = ''; $('savedReceipt').style.transform = ''; }
   if($('savedSheet')) $('savedSheet').classList.remove('on');
 }
 /* Straight into the next customer — the form was already cleared on save. */
@@ -5877,6 +5955,29 @@ function savedNewOrder(){
   go('new');
   if($('lastName')) $('lastName').focus();
 }
+/* The slip the customer photographs. Same builder as the printed receipt, so
+   what is on screen and what comes off the roll can never drift apart.
+   Scaled down if it would otherwise overflow, because the whole point is that
+   nobody has to scroll to photograph it. */
+function renderSavedReceipt(o){
+  var box = $('savedReceipt'), wrap = $('savedPaperWrap');
+  if(!box || !wrap) return;
+  if(!o){ box.innerHTML = ''; return; }
+  box.style.transform = '';
+  box.innerHTML = posReceipt(o);
+  // let the browser lay it out, then shrink to fit the panel
+  setTimeout(function(){
+    try{
+      var avail = wrap.clientHeight - 24;
+      var tall = box.scrollHeight;
+      if(tall > avail && avail > 60){
+        var k = Math.max(0.55, avail / tall);
+        box.style.transform = 'scale(' + k.toFixed(3) + ')';
+      }
+    }catch(e){}
+  }, 30);
+}
+
 function savedViewOrder(){
   hideOrderSaved();
   if(savedOrderId) openOrder(savedOrderId);
@@ -6719,17 +6820,49 @@ function editOrder(id){
   var o = DB.orders.filter(function(x){ return x.id===id; })[0];
   fillForm(o); go('new');
 }
+/* Deleting is the one action with nothing behind it — no void flag, no history,
+   no way back. So it asks twice: once to say what is going, and once for the
+   shop password, the same gate that guards Setup and Delete-everything. */
 function deleteOrder(id){
   var o = DB.orders.filter(function(x){ return x.id===id; })[0];
   if(!o) return;
   var who = String((o.firstName||'') + ' ' + (o.lastName||'')).trim();
+  var sibs = o.ticketId ? ticketLines(o.ticketId).filter(function(x){ return x.id !== id; }) : [];
+  var part = sibs.length
+    ? 'This is one garment of ' + (sibs.length + 1) + ' on order ' + ticketOrderNo(ticketLines(o.ticketId)) +
+      '. Only ' + (o.productName || 'this garment') + ' goes; the other ' +
+      (sibs.length === 1 ? 'one stays' : sibs.length + ' stay') + '. '
+    : '';
+
   ask({ title:'Delete ' + o.orderId + '?',
-        body:(who ? 'For ' + who + '. ' : '') + 'This cannot be undone.',
-        kind:'confirm', okLabel:'Delete it', tone:'danger' }, function(yes){
+        body:(who ? 'For ' + who + '. ' : '') + part +
+             'Nothing is kept — this cannot be undone.',
+        kind:'confirm', okLabel:'Continue', tone:'danger' }, function(yes){
     if(!yes) return;
-    DB.orders = DB.orders.filter(function(x){ return x.id!==id; });
-    save(); toast('Order deleted'); renderFind(); updateDueBadge(); updateQuickBadge();
+    askPassword('Deleting ' + o.orderId + ' needs the shop password.', function(){
+      deleteOrderNow(id);
+    });
   });
+}
+function deleteOrderNow(id){
+  var o = DB.orders.filter(function(x){ return x.id===id; })[0];
+  if(!o){ toast('That order is already gone'); return; }
+  var tid = o.ticketId, gone = o.orderId, what = o.productName || 'garment';
+  DB.orders = DB.orders.filter(function(x){ return x.id!==id; });
+
+  // the rest of the order must not keep claiming a garment that is no longer there
+  if(tid){
+    var left = ticketLines(tid);
+    left.forEach(function(x){
+      x.lineCount = left.length;
+      logEvent(x, gone + ' (' + what + ') was deleted from this order by ' +
+               (currentUser() || 'staff') + '.', true);
+    });
+  }
+  save(); queueSync();
+  toast('Deleted ' + gone);
+  detailOpen = false;
+  renderFind(); updateDueBadge(); updateQuickBadge();
 }
 
 /* ---------- due ---------- */
@@ -8422,14 +8555,71 @@ function freshStartIfNeeded(){
    Added once, on first run. Anything already in Lists under the same name is
    left alone, so prices edited in the app are never overwritten. */
 var STANDARD_PRODUCTS = [
-  { name:'DEPARTMENTAL',  price:1550, bigger:100, sizes:[] },
-  { name:'CLINICAL (M)',  price:1500, bigger:100, sizes:[] },
-  { name:'CLINICAL (F)',  price:1600, bigger:100, sizes:[] },
-  { name:'LAB GOWN',      price:975,  sizes:[
-      {size:'S/M', price:975}, {size:'L/XL', price:1055}, {size:'2XL/3XL', price:1175} ] },
-  { name:'SCRUB SUIT',    price:1000, split:true, sizes:[
-      {size:'S/M', price:1000}, {size:'L/XL', price:1050}, {size:'2XL/3XL', price:1150} ] }
+  // Prices are the ones actually charged: small sizes, then L/XL, then 2XL/3XL.
+  { name:'DEPARTMENTAL', price:1550, bigger:100, sizes:[
+      {size:'XS',price:1550},{size:'S',price:1550},{size:'M',price:1550},
+      {size:'L',price:1650},{size:'XL',price:1650},
+      {size:'2XL',price:1650},{size:'3XL',price:1650} ] },
+  { name:'CLINICAL (MALE)', price:1500, bigger:100, sizes:[
+      {size:'XS',price:1500},{size:'S',price:1500},{size:'M',price:1500},
+      {size:'L',price:1600},{size:'XL',price:1600},
+      {size:'2XL',price:1600},{size:'3XL',price:1600} ] },
+  { name:'CLINICAL (FEMALE)', price:1600, bigger:100, sizes:[
+      {size:'XS',price:1600},{size:'S',price:1600},{size:'M',price:1600},
+      {size:'L',price:1700},{size:'XL',price:1700},
+      {size:'2XL',price:1700},{size:'3XL',price:1700} ] },
+  { name:'LAB GOWN', price:975, sizes:[
+      {size:'XS',price:975},{size:'S',price:975},{size:'M',price:975},
+      {size:'L',price:1055},{size:'XL',price:1055},
+      {size:'2XL',price:1175},{size:'3XL',price:1175} ] },
+  { name:'SCRUB SUIT', price:1000, split:true, sizes:[
+      {size:'XS',price:1000},{size:'S',price:1000},{size:'M',price:1000},
+      {size:'L',price:1050},{size:'XL',price:1050},
+      {size:'2XL',price:1150},{size:'3XL',price:1150} ] }
 ];
+/* ---------- one-time tidy of the size names already in Lists ----------
+   Only the catalogue is touched. Saved orders keep whatever size was written on
+   them at the time — they are the record of what was sold and must not change. */
+function normaliseCatalogSizes(){
+  if(DB.sizesNormalised) return;
+  var touched = 0;
+  (DB.products || []).forEach(function(p){
+    if(!p.sizes || !p.sizes.length) return;
+    var byName = {}, out = [];
+    p.sizes.forEach(function(z){
+      var name = sizeCanon(z.size);
+      if(!name) return;
+      if(name in byName){
+        // a banded entry and a plain one collided; keep the cheaper, it is the
+        // small end of the band
+        if(num(z.price) && num(z.price) < num(byName[name].price)) byName[name].price = num(z.price);
+        touched++;
+        return;
+      }
+      byName[name] = { size:name, price:num(z.price) };
+      out.push(byName[name]);
+      if(name !== String(z.size).trim().toUpperCase()) touched++;
+    });
+    // fill the gaps a band used to cover: S/M meant S and M
+    (p.sizes || []).forEach(function(z){
+      var raw = String(z.size||'').trim().toUpperCase().replace(/\s+/g,'');
+      var parts = raw.split('/');
+      if(parts.length < 2) return;
+      parts.forEach(function(part){
+        var nm = sizeCanon(part);
+        if(!nm || (nm in byName)) return;
+        byName[nm] = { size:nm, price:num(z.price) };
+        out.push(byName[nm]);
+        touched++;
+      });
+    });
+    out.sort(function(a,b){ return sizeRank(a.size) - sizeRank(b.size); });
+    p.sizes = out;
+  });
+  DB.sizesNormalised = true;
+  if(touched) save();
+}
+
 function seedStandardProducts(){
   var byName = {};
   DB.products.forEach(function(p){ byName[String(p.name).toUpperCase()] = p; });
@@ -8450,6 +8640,7 @@ function seedStandardProducts(){
   });
   DB.standardsSeeded = true;
   if(touched) save();
+  normaliseCatalogSizes();
 }
 freshStartIfNeeded();
 load();
