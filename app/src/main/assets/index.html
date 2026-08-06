@@ -1623,6 +1623,7 @@ var DB = {
   users: [], lastUser: null, quickPrefix: 'ORD',
   sync: {url:'', secret:'', auto:true, pull:false, lastAt:null, lastPullAt:null, lastMsg:''},
   held: [],            // slips put aside part-finished, waiting to be picked up again
+  deleted: [],         // orders deleted here, so a pull cannot bring them back
   cashups: {},         // one cash count per day, keyed yyyy-mm-dd
   listMeta: {},        // when each list entry last changed, for merging
   listGone: {}         // entries deliberately removed, so they stay removed
@@ -5476,7 +5477,9 @@ function syncNow(manual){
   }
   var batch = unsyncedOrders();
   var listsChanged = listsDiffer();
-  if(!batch.length && !listsChanged){
+  var nDel = (DB.deleted || []).length;
+  var deletesPending = nDel > 0 && (c.deletesSent || 0) !== nDel;
+  if(!batch.length && !listsChanged && !deletesPending){
     c.lastMsg = 'Everything is already on the sheet'; renderSync();
     if(manual) toast('Nothing new to send'); return; }
 
@@ -5494,6 +5497,10 @@ function syncNow(manual){
       device: (DB.device && DB.device.name) || '',
       code: deviceCode(),
       rows: batch.map(function(o){ return { cells: sheetRow(o), data: JSON.stringify(o) }; }),
+      // ids the sheet should drop. Harmless if the script ignores it.
+      deletes: (DB.deleted || []).slice(-200).map(function(d){
+        return { id:d.id, orderId:d.orderId, at:d.at, by:d.by };
+      }),
       lists: listBundle()
     })
   })
@@ -5506,6 +5513,7 @@ function syncNow(manual){
     if(!ok) throw new Error(msg || 'The script did not accept it');
     batch.forEach(function(o){ o.syncedAt = sentAt; });
     c.listsSentHash = JSON.stringify(listSnapshot());
+    c.deletesSent = (DB.deleted || []).length;
     c.lastAt = stamp();
     c.lastMsg = (batch.length ? batch.length + ' order(s) sent · ' + msg
                               : 'Lists sent') +
@@ -6836,7 +6844,8 @@ function deleteOrder(id){
 
   ask({ title:'Delete ' + o.orderId + '?',
         body:(who ? 'For ' + who + '. ' : '') + part +
-             'Nothing is kept — this cannot be undone.',
+             'Nothing is kept \u2014 this cannot be undone. To keep it in the records ' +
+             'instead, cancel out of here and use Correct \u2192 Cancel the order.',
         kind:'confirm', okLabel:'Continue', tone:'danger' }, function(yes){
     if(!yes) return;
     askPassword('Deleting ' + o.orderId + ' needs the shop password.', function(){
@@ -6844,10 +6853,27 @@ function deleteOrder(id){
     });
   });
 }
+/* ---------- deletions have to survive a sync ----------
+   Removing the record locally is not enough: the row is still on the sheet, so
+   the next pull merges it straight back in and the order reappears in Find.
+   A tombstone is kept for every deletion, pull ignores anything tombstoned, and
+   the id is sent up so the sheet can drop its row too. */
+var DELETED_KEEP = 400;
+function tombstone(o){
+  DB.deleted = DB.deleted || [];
+  if(DB.deleted.some(function(d){ return d.id === o.id; })) return;
+  DB.deleted.push({ id:o.id, orderId:o.orderId || '', at:stamp(),
+                    by:currentUser(), device:(DB.device && DB.device.name) || '' });
+  if(DB.deleted.length > DELETED_KEEP) DB.deleted = DB.deleted.slice(-DELETED_KEEP);
+}
+function isDeletedHere(id){
+  return (DB.deleted || []).some(function(d){ return d.id === id; });
+}
 function deleteOrderNow(id){
   var o = DB.orders.filter(function(x){ return x.id===id; })[0];
   if(!o){ toast('That order is already gone'); return; }
   var tid = o.ticketId, gone = o.orderId, what = o.productName || 'garment';
+  tombstone(o);
   DB.orders = DB.orders.filter(function(x){ return x.id!==id; });
 
   // the rest of the order must not keep claiming a garment that is no longer there
@@ -8155,6 +8181,8 @@ function mergeBackup(d){
   DB.orders.forEach(function(o){ byId[o.id] = o; byOrderId[o.orderId] = o; });
 
   (d.orders||[]).forEach(function(incoming){
+    // deleted here on purpose — do not let the sheet put it back
+    if(isDeletedHere(incoming.id)){ stats.skippedDeleted = (stats.skippedDeleted||0) + 1; return; }
     var mine = byId[incoming.id];
     if(mine){
       var res = mergeOrderInto(mine, incoming);
@@ -8554,29 +8582,37 @@ function freshStartIfNeeded(){
 /* ---------- the shop's standard products ----------
    Added once, on first run. Anything already in Lists under the same name is
    left alone, so prices edited in the app are never overwritten. */
-var STANDARD_PRODUCTS = [
-  // Prices are the ones actually charged: small sizes, then L/XL, then 2XL/3XL.
-  { name:'DEPARTMENTAL', price:1550, bigger:100, sizes:[
-      {size:'XS',price:1550},{size:'S',price:1550},{size:'M',price:1550},
-      {size:'L',price:1650},{size:'XL',price:1650},
-      {size:'2XL',price:1650},{size:'3XL',price:1650} ] },
-  { name:'CLINICAL (MALE)', price:1500, bigger:100, sizes:[
-      {size:'XS',price:1500},{size:'S',price:1500},{size:'M',price:1500},
-      {size:'L',price:1600},{size:'XL',price:1600},
-      {size:'2XL',price:1600},{size:'3XL',price:1600} ] },
-  { name:'CLINICAL (FEMALE)', price:1600, bigger:100, sizes:[
-      {size:'XS',price:1600},{size:'S',price:1600},{size:'M',price:1600},
-      {size:'L',price:1700},{size:'XL',price:1700},
-      {size:'2XL',price:1700},{size:'3XL',price:1700} ] },
-  { name:'LAB GOWN', price:975, sizes:[
-      {size:'XS',price:975},{size:'S',price:975},{size:'M',price:975},
-      {size:'L',price:1055},{size:'XL',price:1055},
-      {size:'2XL',price:1175},{size:'3XL',price:1175} ] },
-  { name:'SCRUB SUIT', price:1000, split:true, sizes:[
-      {size:'XS',price:1000},{size:'S',price:1000},{size:'M',price:1000},
-      {size:'L',price:1050},{size:'XL',price:1050},
-      {size:'2XL',price:1150},{size:'3XL',price:1150} ] }
+var STANDARD_SCHOOLS = ['RMMC'];
+var STANDARD_DEPTS = ['BSN','MIDWIFERY','PHARMA','RAD','MED TECH','PUB H','BSES'];
+
+/* The shop's own catalogue, so a fresh tablet is ready to take orders without
+   anybody retyping it. A garment is priced per department, so each of these is
+   written once here and repeated across the departments that sell it. */
+var SIZED_LADDER = function(a, b, c){
+  return [ {size:'XS',price:a},{size:'S',price:a},{size:'M',price:a},
+           {size:'L',price:b},{size:'XL',price:b},
+           {size:'2XL',price:c},{size:'3XL',price:c} ];
+};
+var STANDARD_CATALOG = [
+  { name:'DEPARTMENTAL',      price:1550, bigger:100, depts:STANDARD_DEPTS },
+  { name:'LAB GOWN',          price:975,  depts:STANDARD_DEPTS, sizes:SIZED_LADDER(975, 1055, 1175) },
+  { name:'SCRUB SUIT',        price:1000, split:true, depts:['BSN','MIDWIFERY'],
+                              sizes:SIZED_LADDER(1000, 1050, 1150) },
+  { name:'CLINICAL (MALE)',   price:1500, bigger:100, depts:['BSN','MIDWIFERY'] },
+  { name:'CLINICAL (FEMALE)', price:1600, bigger:100, depts:['BSN','MIDWIFERY'] }
 ];
+/* Flattened into one entry per garment-and-department, the shape Lists uses. */
+function standardProductRows(){
+  var out = [];
+  STANDARD_CATALOG.forEach(function(c){
+    (c.depts || ['']).forEach(function(dept){
+      out.push({ name:c.name, school:STANDARD_SCHOOLS[0], department:dept,
+                 price:c.price, bigger:c.bigger || 0, split:!!c.split,
+                 sizes:(c.sizes || []).map(function(z){ return {size:z.size, price:z.price}; }) });
+    });
+  });
+  return out;
+}
 /* ---------- one-time tidy of the size names already in Lists ----------
    Only the catalogue is touched. Saved orders keep whatever size was written on
    them at the time — they are the record of what was sold and must not change. */
@@ -8620,24 +8656,56 @@ function normaliseCatalogSizes(){
   if(touched) save();
 }
 
+/* A product is identified by garment + school + department, because the same
+   garment is priced separately for each course. Keying on the name alone made
+   seven DEPARTMENTAL entries look like one. */
+function productKey(p){
+  return [String(p.name||'').toUpperCase(),
+          String(p.school||'').toUpperCase(),
+          String(p.department||'').toUpperCase()].join('|');
+}
 function seedStandardProducts(){
-  var byName = {};
-  DB.products.forEach(function(p){ byName[String(p.name).toUpperCase()] = p; });
   var touched = 0;
-  STANDARD_PRODUCTS.forEach(function(sp){
-    var have = byName[sp.name];
-    if(have){
-      // an older build may have added the product without its rules
-      if(sp.bigger && have.bigger == null){ have.bigger = sp.bigger; touched++; }
-      if(sp.split  && have.split  == null){ have.split  = true;      touched++; }
+
+  // school and departments first — a product is no use without them
+  DB.schools = DB.schools || [];
+  if(!DB.standardsSeeded){
+    STANDARD_SCHOOLS.forEach(function(nm){
+      if(!DB.schools.some(function(x){ return String(x).toUpperCase() === nm.toUpperCase(); })){
+        DB.schools.push(nm); touched++;
+      }
+    });
+    DB.departments = DB.departments || [];
+    STANDARD_DEPTS.forEach(function(nm){
+      var there = DB.departments.some(function(d){
+        return String(d.name||'').toUpperCase() === nm.toUpperCase() &&
+               String(d.school||'').toUpperCase() === STANDARD_SCHOOLS[0].toUpperCase();
+      });
+      if(!there){ DB.departments.push({ name:nm, school:STANDARD_SCHOOLS[0] }); touched++; }
+    });
+  }
+
+  var have = {};
+  DB.products.forEach(function(p){ have[productKey(p)] = p; });
+
+  standardProductRows().forEach(function(sp){
+    var mine = have[productKey(sp)];
+    if(mine){
+      // an older build may have added the garment without its rules or sizes
+      if(sp.bigger && mine.bigger == null){ mine.bigger = sp.bigger; touched++; }
+      if(sp.split  && mine.split  == null){ mine.split  = true;      touched++; }
+      if(sp.sizes.length && !(mine.sizes && mine.sizes.length)){
+        mine.sizes = sp.sizes.map(function(z){ return {size:z.size, price:z.price}; });
+        touched++;
+      }
       return;
     }
     if(DB.standardsSeeded) return;   // deleted on purpose — do not put it back
-    DB.products.push({ name:sp.name, school:'', department:'', price:sp.price,
-                       bigger:sp.bigger || 0, split:!!sp.split,
-                       sizes:sp.sizes.map(function(z){ return {size:z.size, price:z.price}; }) });
+    DB.products.push(sp);
+    have[productKey(sp)] = sp;
     touched++;
   });
+
   DB.standardsSeeded = true;
   if(touched) save();
   normaliseCatalogSizes();
