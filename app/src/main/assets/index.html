@@ -151,18 +151,16 @@ input:required:invalid:not(:placeholder-shown){border-color:#E7B7B2}
 .m label{font-size:11.5px;font-weight:600;letter-spacing:.07em;color:var(--rose);
   text-transform:uppercase;margin:4px 0 2px}
 .m input{
-  border:none;border-radius:0;padding:2px 0;min-height:34px;font-size:21px;font-weight:500;
+  border:none;border-radius:0;padding:2px 0;min-height:30px;font-size:16px;font-weight:600;
   background:transparent;text-align:left;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;
   width:100%;
 }
 /* A cell is a third of the row, so 7.5-14-5.5 will not fit at full size. The
    text steps down rather than being cut off half way through. */
-.m input.fit-6{font-size:18px}
-.m input.fit-8{font-size:16px;letter-spacing:-0.02em}
-.m input.fit-10{font-size:14px;letter-spacing:-0.02em}
+.m input{text-overflow:clip}
 .m input:focus{box-shadow:none}
 .m input:focus{outline:none;box-shadow:inset 0 -2px 0 var(--rose)}
-.m input::placeholder{color:#DCC6CD;font-size:14px;letter-spacing:.02em}
+.m input::placeholder{color:#DCC6CD;font-size:11.5px;letter-spacing:.02em}
 .m .hint{font-size:9.5px;color:#B9A6AC;letter-spacing:.02em}
 
 /* ---------- ask modal ----------
@@ -2044,17 +2042,70 @@ function formatMeasure(v, seg){
 
 /* Puts a dash where the caret is and hands the field straight back, so the
    keypad never closes and the next number can be typed immediately. */
-/* Shrinks the type just enough that the whole measurement stays readable. */
+/* Shrinks the type until the whole measurement really fits its cell.
+
+   Two earlier attempts were not good enough. Counting characters guessed at the
+   cell width and guessed wrong. Reading scrollWidth is unreliable on an <input>:
+   several engines report it as the visible width even when the text overflows,
+   so nothing ever looked too long.
+
+   Measuring the text itself on a canvas is exact and works the same everywhere.
+   Width scales with font size, so one measurement gives the answer outright —
+   no loop, and it can run on every keystroke without being felt. */
+var MEAS_MAX_PX = 16, MEAS_MIN_PX = 7, MEAS_PAD_PX = 3;
+var measCanvas = null;
+function measTextWidth(text, px, font){
+  try{
+    if(!measCanvas) measCanvas = document.createElement('canvas');
+    var ctx = measCanvas.getContext('2d');
+    if(!ctx) return 0;
+    ctx.font = font.weight + ' ' + px + 'px ' + font.family;
+    return ctx.measureText(text).width;
+  }catch(e){ return 0; }
+}
 function fitMeasure(el){
   if(!el) return;
-  var n = String(el.value || '').length;
-  el.classList.remove('fit-6','fit-8','fit-10');
-  if(n >= 10)     el.classList.add('fit-10');
-  else if(n >= 8) el.classList.add('fit-8');
-  else if(n >= 6) el.classList.add('fit-6');
+  el.style.letterSpacing = '';
+  el.style.fontSize = MEAS_MAX_PX + 'px';
+  var v = String(el.value || '');
+  if(!v) return;
+
+  var room = el.clientWidth - MEAS_PAD_PX;
+  if(!(room > 0)) return;                       // not on screen yet
+
+  var cs = (typeof getComputedStyle === 'function') ? getComputedStyle(el) : null;
+  var font = { family: (cs && cs.fontFamily) || 'sans-serif',
+               weight: (cs && cs.fontWeight)  || '600' };
+
+  var wide = measTextWidth(v, MEAS_MAX_PX, font);
+  if(wide > 0){
+    if(wide <= room) return;                    // already fits at full size
+    var px = Math.floor(MEAS_MAX_PX * (room / wide) * 2) / 2;   // half-pixel steps
+    el.style.fontSize = Math.max(MEAS_MIN_PX, px) + 'px';
+    if(px <= 12) el.style.letterSpacing = '-0.02em';
+    return;
+  }
+
+  // no canvas — fall back to asking the element, and to character count if even
+  // that will not admit the text is too long
+  var size = MEAS_MAX_PX, guard = 0;
+  while(el.scrollWidth > room && size > MEAS_MIN_PX && guard++ < 40){
+    size -= 0.5;
+    el.style.fontSize = size + 'px';
+  }
+  if(size === MEAS_MAX_PX && v.length > 6){
+    size = Math.max(MEAS_MIN_PX, MEAS_MAX_PX - (v.length - 6));
+    el.style.fontSize = size + 'px';
+  }
+  if(size <= 12) el.style.letterSpacing = '-0.02em';
 }
 function fitAllMeasures(){
   MEAS.forEach(function(m){ fitMeasure($('m_' + m.k)); });
+}
+if(typeof window !== 'undefined'){
+  window.addEventListener('resize', function(){
+    if($('m_n')) fitAllMeasures();        // rotating the tablet changes the width
+  });
 }
 
 function insertDash(id){
