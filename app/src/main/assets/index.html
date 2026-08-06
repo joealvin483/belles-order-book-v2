@@ -1614,7 +1614,7 @@ var MEAS = [
   {k:'h',   label:'H',  hint:'hips',        seg:2},
   {k:'c',   label:'C',  hint:'crotch',      seg:1},
   {k:'fl',  label:'FL', hint:'full length', seg:2},
-  {k:'l',   label:'L',  hint:'length',      seg:2},
+  {k:'l',   label:'L',  hint:'legs',        seg:2},
   {k:'k',   label:'K',  hint:'knee',        seg:1},
   {k:'an',  label:'An', hint:'ankle',       seg:1},
   {k:'wr',  label:'Wr', hint:'wrist',       seg:2}
@@ -2002,17 +2002,19 @@ Array.prototype.forEach.call(document.querySelectorAll('#nav button'), function(
 function maskMeasure(value, seg){
   var raw = String(value==null?'':value).replace(/[^\d.\-]/g,'').replace(/-{2,}/g,'-');
   if(!raw) return '';
-  if(seg <= 1) return raw.replace(/-/g,'');
   var parts = raw.split('-'), out = [];
   for(var i=0;i<parts.length;i++){
     var p = parts[i];
-    while(p.replace(/\D/g,'').length > 2 && p.indexOf('.') === -1 && out.length < seg-1){
+    // Only a plain run of digits can be broken up. 7.5 is one number, not a 7
+    // followed by a 5, so anything holding a decimal point is left whole.
+    while(seg > 1 && /^\d{3,}$/.test(p) && out.length < seg-1){
       out.push(p.slice(0,2));
       p = p.slice(2);
     }
     out.push(p);
   }
-  if(out.length > seg) out = out.slice(0, seg-1).concat(out.slice(seg-1).join(''));
+  // A dash the person typed is a decision, never undone. seg only says how far
+  // to split a run of digits on their behalf.
   return out.join('-');
 }
 /* Splits a run of digits into the segments a measurement expects, reading
