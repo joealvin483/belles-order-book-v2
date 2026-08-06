@@ -507,6 +507,15 @@ hr.rule{border:none;border-top:1px solid var(--line);margin:14px 0}
 .paytick{display:inline-flex;align-items:center;gap:5px;margin-left:10px;font-size:12px;cursor:pointer}
 .paytick .ok{color:var(--ok)}
 .paytick .bad{color:var(--bad)}
+.mwrap{position:relative;display:block}
+.mwrap input{width:100%;padding-right:34px}
+.dashkey{
+  position:absolute;right:4px;top:50%;transform:translateY(-50%);
+  width:26px;height:26px;line-height:1;padding:0;border-radius:7px;
+  border:1px solid var(--line);background:var(--paper-2,#F6F1EE);
+  font-size:17px;font-weight:700;color:var(--ink-2,#666);cursor:pointer;
+}
+.dashkey:active{background:var(--blush)}
 .pill.entry-q{background:#EFE7F5;color:#5B3E73}
 .pill.entry-f{background:#E7EFF5;color:#2F5670}
 .savedbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
@@ -2035,11 +2044,43 @@ function formatMeasure(v, seg){
   return parts.join('-');
 }
 
+/* Puts a dash where the caret is and hands the field straight back, so the
+   keypad never closes and the next number can be typed immediately. */
+function insertDash(id){
+  var el = $(id);
+  if(!el) return;
+  var v = String(el.value || '');
+  var a = (el.selectionStart == null) ? v.length : el.selectionStart;
+  var b = (el.selectionEnd == null) ? v.length : el.selectionEnd;
+  if(v.charAt(a - 1) === '-' && a === b) return;      // never two in a row
+  el.value = v.slice(0, a) + '-' + v.slice(b);
+  var at = a + 1;
+  el.focus();
+  try { el.setSelectionRange(at, at); } catch(e){}
+  // carries the character, so the field treats it as a typed dash and keeps it
+  var ev;
+  try {
+    ev = new InputEvent('input', { bubbles: true, data: '-', inputType: 'insertText' });
+  } catch(e){
+    ev = new Event('input', { bubbles: true });
+    try { ev.data = '-'; } catch(_){}
+  }
+  el.dispatchEvent(ev);
+}
+
 function buildTape(){
   $('tapeGrid').innerHTML = MEAS.map(function(m){
     var ph = m.seg === 3 ? 'xx-xx-xx' : (m.seg === 2 ? 'xx-xx' : 'xx');
+    // Android's number pad has no dash key, so the field carries its own.
+    // Without it a separator simply cannot be typed on the tablet.
     return '<div class="m"><label for="m_'+m.k+'">'+m.label+'</label>'+
-           '<input type="text" id="m_'+m.k+'" inputmode="decimal" placeholder="'+ph+'">'+
+           '<div class="mwrap">'+
+             '<input type="text" id="m_'+m.k+'" inputmode="decimal" placeholder="'+ph+'">'+
+             (m.seg > 1
+               ? '<button type="button" class="dashkey" tabindex="-1" title="Add a dash" '+
+                 'onclick="insertDash(\'m_'+m.k+'\')">&#8211;</button>'
+               : '')+
+           '</div>'+
            '<div class="hint">'+m.hint+'</div></div>';
   }).join('');
 
@@ -2056,7 +2097,13 @@ function buildTape(){
        same right-to-left rule as a scanned or pasted value. Typing 81218 into
        a three-part field passes through 8, 81, 8-12, 81-21 and settles on
        8-12-18 — the same answer the scanner would give for those digits. */
-    el.addEventListener('input', function(){
+    el.addEventListener('input', function(e){
+      /* A soft keyboard does not report which key was pressed — Android sends
+         keydown with key 'Unidentified' — so the dash has to be recognised from
+         the input event, which does carry the character. Without this the mask
+         strips every dash the moment it is typed on the tablet, while a desktop
+         keyboard works fine. */
+      if(e && String(e.data || '').indexOf('-') > -1) manual = true;
       var shrinking = el.value.length < prevLen;
       prevLen = el.value.length;
       if(m.seg <= 1 || manual) return;
