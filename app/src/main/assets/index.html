@@ -41,7 +41,7 @@
   --posmono:ui-monospace,"Roboto Mono","DejaVu Sans Mono",Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box}
-html,body{margin:0;padding:0}
+html,body{margin:0;padding:0;overflow-x:hidden}
 body{
   background:var(--canvas);
   color:var(--ink);
@@ -209,6 +209,9 @@ input:required:invalid:not(:placeholder-shown){border-color:#E7B7B2}
 .btn-sm{min-height:40px;padding:9px 15px;font-size:14.5px;font-weight:530}
 .btn-block{width:100%}
 .btn-row{display:flex;gap:9px;flex-wrap:wrap}
+/* Progress buttons: one tap per piece, current state spelled out beside them. */
+.donerow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:2px 0 0}
+.donestate{font-size:12.5px;color:var(--muted)}
 .sticky-save{
   position:sticky;bottom:calc(76px + env(safe-area-inset-bottom));z-index:20;
   padding-top:4px;
@@ -676,6 +679,11 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   .sticky-save{bottom:14px}
 }
 
+/* Below the tablet breakpoint the two columns simply stack, so the cards read
+   top to bottom in one flow and still keep a consistent order. */
+.dcol{min-width:0}
+.dcol>.card{min-width:0;overflow-wrap:anywhere}
+
 /* ---------- 10-inch tablet and up ---------- */
 @media (min-width:900px){
   .wrap{max-width:1240px;padding:20px 22px 8px}
@@ -696,9 +704,20 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   .stub{margin-bottom:0}
   .searchbar{max-width:620px}
   .stub .tab{width:74px}
-  .detail{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
-  .detail>.card{margin-bottom:0}
-  .detail>button,.detail>.btn-row{grid-column:1/-1}
+  /* The detail screen used to be a plain two-column grid that auto-placed
+     whatever cards happened to exist. That made the layout jump: on a garment
+     with no measurements the Tape card vanished and every card after it slid
+     into the other column, so "Same order" and "Hand-off" appeared to move
+     sideways, and a tall summary card left a dead gap above the next row.
+     Now the two columns are real elements, so each card keeps its seat no
+     matter which sections a garment happens to have. */
+  .detail{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+          gap:16px;align-items:start}
+  .detail>.backbar,.detail>.btn-row,.detail>#receiptPanel{grid-column:1/-1}
+  .dcol{min-width:0;display:flex;flex-direction:column;gap:16px}
+  .dcol>.card{margin-bottom:0;min-width:0;overflow-wrap:anywhere}
+  .detail .kv .v{min-width:0;overflow-wrap:anywhere}
+  .detail>button{grid-column:1/-1}
 }
 /* A 10-inch tablet in landscape is about 1280 wide: three columns puts the
    whole order on one screen, so nothing has to be scrolled while a customer
@@ -763,7 +782,11 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   .pos .mgrid span{white-space:nowrap}
   .pos .foot{font-size:9px;text-align:center;margin-top:7px}
   .pos .qrbox{text-align:center;margin:6px 0 2px}
-  .pos .qrbox img{width:118px;height:118px;image-rendering:pixelated}
+  /* SVG QR: fixed physical size, printer rasterises it sharply at its own dpi */
+  .pos .qrbox .qrsvg{display:inline-block;width:22mm;height:22mm}
+  .pos .qrbox .qrsvg path{fill:#000!important}
+  .pos .qrbox .qrsvg rect{fill:#fff!important}
+  .pos .qrbox img{width:22mm;height:22mm;image-rendering:pixelated}
   .pos .qrid{font-size:8.5px;letter-spacing:.06em;margin-top:1px;font-weight:700}
   .pos .qrhint{font-size:7.5px;letter-spacing:.04em}
 
@@ -798,7 +821,9 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   body>.qlabels{display:block!important;color:#000;font-family:var(--sans)}
   .qlabel{display:flex;gap:8px;align-items:flex-start;border:1px solid #000;border-radius:6px;
     padding:7px;margin:0 0 6px;break-inside:avoid;page-break-inside:avoid}
-  .qlabel .ql-qr{width:112px;height:112px;flex:none}
+  .qlabel .ql-qr{width:24mm;height:24mm;flex:none}
+  .qlabel .ql-qr .qrsvg{display:block;width:24mm;height:24mm}
+  .qlabel .ql-qr .qrsvg path{fill:#000!important}
   .qlabel .ql-body{flex:1;min-width:0;font-size:10px;line-height:1.3}
   .qlabel .ql-shop{font-weight:700;font-size:9px;letter-spacing:.04em}
   .qlabel .ql-name{font-weight:700;font-size:13px;margin-top:1px}
@@ -1462,6 +1487,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
       <div class="field" style="margin:0">
         <label for="paperWidth">Receipt paper</label>
         <select id="paperWidth" onchange="setPaper(this.value)">
+          <option value="48">48 mm — 5 cm thermal roll</option>
           <option value="58">58 mm — small thermal roll</option>
           <option value="80">80 mm — wide thermal roll</option>
         </select>
@@ -3795,6 +3821,35 @@ function saveAddition(paper, phone, all, total, tenders, now, cash, change){
   fillSelect('qSchool', DB.schools, school);
   qSchoolChange(true);
   if($('qGender')) $('qGender').value = gender;
+
+  // The quick screen has no tape fields, so a garment added later starts with
+  // none. When the order already carries measurements it is usually the same
+  // body being fitted, so offer to copy them across rather than making the
+  // cutter re-measure — but ask, because a stock-size piece should stay bare.
+  var donor = ls.filter(hasMeasurements)[0];
+  if(donor){
+    var what2 = made.map(function(r){ return r.productName; }).join(', ');
+    ask({ title:'Copy the measurements over?',
+          body:'Order ' + base + ' already has measurements taken on ' +
+               donor.orderId + '. Use the same measurements for ' + what2 + '?',
+          kind:'confirm', okLabel:'Copy them' }, function(yes){
+      if(yes){
+        var at = stamp();
+        made.forEach(function(rec){
+          rec.meas = JSON.parse(JSON.stringify(donor.meas || {}));
+          rec.updatedAt = at;
+          logEvent(rec, 'Measurements copied from ' + donor.orderId + '.', true);
+        });
+        save(); queueSync();
+        toast('Measurements copied to ' + made.length + ' garment(s)');
+      }
+      showOrderSaved(made, Math.min(total, tenderTotal(tenders)), {
+        quick: true, change: change, added: true, tenders: tenders, ticket: tt, base: base
+      });
+    });
+    return;
+  }
+
   showOrderSaved(made, Math.min(total, tenderTotal(tenders)), {
     quick: true, change: change, added: true, tenders: tenders, ticket: tt, base: base
   });
@@ -4499,7 +4554,7 @@ function renderReport(){
                (o.needsDetails ? '<span class="pill due">details</span>' : '') +
                (o.hasProof ? '<span class="pill rcv">proof</span>' : '');
     var mm = MEAS.filter(function(m){ return o.meas && o.meas[m.k]; })
-      .map(function(m){ return '<span><b>'+m.label+'</b> '+esc(o.meas[m.k])+'</span>'; }).join('');
+      .map(function(m){ return '<span><b>'+m.label+'</b> ('+esc(o.meas[m.k])+')</span>'; }).join('');
     var meas = mm
       ? '<div class="rmeas">'+mm+'</div>'
       : (o.needsDetails ? '<div class="rmeas none">no measurements yet</div>' : '');
@@ -4715,12 +4770,11 @@ function measureSlipHTML(o, withCode){
       '<div class="rule solid"></div>'+
       (mm.length
         ? '<div class="mgrid">' + mm.map(function(m){
-            return '<span>'+m.label+' '+esc(o.meas[m.k])+'</span>'; }).join('') + '</div>'
+            return '<span>'+m.label+' ('+esc(o.meas[m.k])+')</span>'; }).join('') + '</div>'
         : '<div class="foot">NO MEASUREMENTS RECORDED</div>')+
       (o.notes ? '<div class="rule"></div><div class="wrap2">'+esc(o.notes)+'</div>' : '')+
-      posLine('Order', orderPaidText(o)) +
       (withCode
-        ? '<div class="qrbox"><img src="'+orderQRUrl(o, 6)+'" alt="Order code">'+
+        ? '<div class="qrbox">'+orderQRSvg(o, 22)+
           '<div class="qrid">'+esc(o.orderId)+'</div>'+
           '<div class="qrhint">Scan at pick-up</div></div>'
         : '')+
@@ -5092,6 +5146,39 @@ function orderQRUrl(o, cell){
   return qrDataUrl(QR_PREFIX + o.id, cell);
 }
 
+/* ---------- crisp thermal QR ----------
+   Thermal heads (203 dpi) smear a rescaled GIF. Instead we emit a vector SVG:
+   every module is drawn as a whole unit and the printer rasterises it at its own
+   resolution, so the code stays sharp at any physical size. The svg carries no
+   width/height — the .qrbox CSS sizes it in mm, and a 4-module quiet zone plus
+   forced solid black keep it scannable straight off the roll.
+   `mm` is the finished side length in millimetres (default 20mm ≈ good for 58mm
+   paper). Returns an inline <svg> string, ready to drop into innerHTML. */
+function orderQRSvg(o, mm){
+  mm = mm || 20;
+  var qr = qrcode(0, 'M');
+  qr.addData(QR_PREFIX + o.id);
+  qr.make();
+  var count = qr.getModuleCount();
+  var quiet = 4;                       // required silent margin, in modules
+  var span  = count + quiet * 2;       // total grid the viewBox covers
+  var path  = '';
+  for(var r = 0; r < count; r++){
+    for(var c = 0; c < count; c++){
+      if(qr.isDark(r, c)){
+        // one filled 1x1 module, offset by the quiet zone
+        path += 'M' + (c + quiet) + ',' + (r + quiet) + 'h1v1h-1z';
+      }
+    }
+  }
+  return '<svg class="qrsvg" viewBox="0 0 ' + span + ' ' + span + '" ' +
+         'style="width:' + mm + 'mm;height:' + mm + 'mm" ' +
+         'shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" ' +
+         'role="img" aria-label="Order code ' + esc(o.orderId || o.id) + '">' +
+         '<rect width="' + span + '" height="' + span + '" fill="#fff"/>' +
+         '<path d="' + path + '" fill="#000"/></svg>';
+}
+
 /* Turns whatever the camera decoded into one of our orders, or null. */
 function orderFromScan(text){
   if(!text) return null;
@@ -5106,21 +5193,28 @@ function orderFromScan(text){
    carries everything the workroom and the counter need without the tablet:
    who it belongs to, what it is, the full tape, when it is due and what is
    still owed. The QR resolves to this one record. */
+/* The label goes on the garment for the workroom and the hand-off counter, so
+   it carries only who it belongs to and how it is cut. Money never appears
+   here — the balance is on the receipt and the send-receipt, where the
+   customer settles it. A piece with no tape of its own borrows the order's,
+   so a stock-size companion still shows the right body measurements. */
 function qrLabelHTML(o){
-  var ls = ticketLines(o.ticketId);
   var partOf = (o.lineCount > 1)
     ? '<span class="ql-part">' + o.lineNo + ' of ' + o.lineCount + '</span>' : '';
-  var tt = ticketTotals(o.ticketId);
-  var bal = (o.lineCount > 1) ? tt.balance : num(o.balance);
   var n = parseInt(o.set || 1, 10);
 
-  var tape = MEAS.filter(function(m){ return o.meas && o.meas[m.k]; })
+  var src = o;
+  if(!hasMeasurements(o) && o.ticketId){
+    var donor = ticketLines(o.ticketId).filter(hasMeasurements)[0];
+    if(donor) src = donor;
+  }
+  var tape = MEAS.filter(function(m){ return src.meas && src.meas[m.k]; })
     .map(function(m){
-      return '<span class="ql-m"><b>' + m.label + '</b> ' + esc(o.meas[m.k]) + '</span>';
+      return '<span class="ql-m"><b>' + m.label + '</b> (' + esc(src.meas[m.k]) + ')</span>';
     }).join('');
 
   return '<div class="qlabel">' +
-    '<img class="ql-qr" src="' + orderQRUrl(o, 6) + '" alt="QR">' +
+    '<div class="ql-qr">' + orderQRSvg(o, 24) + '</div>' +
     '<div class="ql-body">' +
       '<div class="ql-top"><span class="ql-shop">BELLE\'S DRESS SHOP</span>' + partOf + '</div>' +
       '<div class="ql-no">' + esc(o.orderId) + '</div>' +
@@ -5137,23 +5231,25 @@ function qrLabelHTML(o){
       (o.notes ? '<div class="ql-note">' + esc(o.notes) + '</div>' : '') +
       '<div class="ql-foot">' +
         '<span>' + (o.dateDue ? 'Due ' + nice(o.dateDue) : 'No due date') + '</span>' +
-        '<span>' + (bal > 0 ? 'Balance ' + peso(bal) : 'Paid in full') +
-          (o.lineCount > 1 && bal > 0 ? ' (whole order)' : '') + '</span>' +
       '</div>' +
     '</div></div>';
 }
 
 /* A label is a promise to the workroom, so it is refused while the order is
-   still a bare slip — an unnamed garment with no measurements cannot be cut. */
-function labelBlockedReason(o){
+   still a bare slip — an unnamed garment cannot be handed over. Measurements
+   are required for a single garment, but a companion garment on a multi-piece
+   ticket may legitimately have none (e.g. a stock-size add-on), so when
+   `allowNoMeas` is set we only insist on the customer details. */
+function labelBlockedReason(o, allowNoMeas){
   if(o.needsDetails || !o.lastName) return 'this order still needs the customer details';
-  if(!MEAS.some(function(m){ return o.meas && o.meas[m.k]; })) return 'this order has no measurements yet';
+  if(!allowNoMeas && !MEAS.some(function(m){ return o.meas && o.meas[m.k]; })) return 'this order has no measurements yet';
   return '';
 }
 function printQRLabel(id){
   var o = DB.orders.filter(function(x){ return x.id === id; })[0];
   if(!o) return;
-  var why = labelBlockedReason(o);
+  var multi = parseInt(o.lineCount||1,10) > 1;
+  var why = labelBlockedReason(o, multi);
   if(why){
     toast('Cannot print a label — ' + why);
     ask({ title:'Cannot print a label yet',
@@ -5175,13 +5271,15 @@ function printQRLabel(id){
   // until the next print is safe.
 }
 
-/* When one customer has several garments, each still needs its own label. */
+/* When one customer has several garments, each still needs its own label —
+   including a companion piece that has no measurements of its own. */
 function printTicketLabels(id){
   var o = DB.orders.filter(function(x){ return x.id === id; })[0];
   if(!o) return;
   var ls = ticketLines(o.ticketId);
   if(!ls.length) ls = [o];
-  var ready = ls.filter(function(x){ return !labelBlockedReason(x); });
+  var multi = ls.length > 1;
+  var ready = ls.filter(function(x){ return !labelBlockedReason(x, multi); });
   var blocked = ls.length - ready.length;
   if(!ready.length){
     toast('None of these garments are ready for a label');
@@ -5207,7 +5305,7 @@ function printAllPendingLabels(){
     if(o.isReceived) return;
     var done = parseInt(o.completedStatus||0,10), total = parseInt(o.set||1,10);
     if(!(done >= total && total > 0)) return;
-    if(labelBlockedReason(o)){ skipped++; return; }
+    if(labelBlockedReason(o, (parseInt(o.lineCount||1,10) > 1))){ skipped++; return; }
     list.push(o);                                   // one label per garment
   });
   if(!list.length){
@@ -6697,7 +6795,7 @@ function posReceipt(o){
     if(addonText(x)) h += '<div class="wrap2">+ ' + esc(addonText(x)) + '</div>';
     h += posLine(n > 1 ? n + ' x ' + pesoShort(x.sellingPrice) : 'Price', peso(x.orderTotal));
     var m = MEAS.filter(function(k){ return x.meas && x.meas[k.k]; })
-      .map(function(k){ return '<span>' + k.label + ' ' + esc(x.meas[k.k]) + '</span>'; }).join('');
+      .map(function(k){ return '<span>' + k.label + ' (' + esc(x.meas[k.k]) + ')</span>'; }).join('');
     if(m) h += '<div class="mgrid">' + m + '</div>';
   });
   h += '<div class="rule"></div>';
@@ -6728,7 +6826,7 @@ function posReceipt(o){
   // the same code that is on the pick-up label, so this slip can be scanned
   // straight off the customer's copy at hand-off
   h += '<div class="rule"></div>';
-  h += '<div class="qrbox"><img src="' + orderQRUrl(o, 6) + '" alt="Order code">' +
+  h += '<div class="qrbox">' + orderQRSvg(o, 22) +
        '<div class="qrid">' + esc(o.orderId) + '</div>' +
        '<div class="qrhint">Scan at pick-up</div></div>';
   h += '<div class="rule"></div>';
@@ -6791,8 +6889,17 @@ function openOrder(id){
   if(!o) return;
   var done = parseInt(o.completedStatus||0,10), total = parseInt(o.set||1,10);
 
-  var measRows = MEAS.filter(function(m){ return o.meas && o.meas[m.k]; })
-    .map(function(m){ return '<div class="m"><label>'+m.label+'</label><input type="text" value="'+esc(o.meas[m.k])+'" readonly><div class="hint">'+m.hint+'</div></div>'; }).join('');
+  /* A garment cut to a stock size carries no tape of its own, but the customer
+     is still the same person — so when this piece has none we show the tape
+     taken elsewhere on the same order rather than an empty card. The card is
+     always rendered so the layout never changes shape between garments. */
+  var measSrc = o, measFrom = '';
+  if(!hasMeasurements(o) && o.ticketId){
+    var donor = ticketLines(o.ticketId).filter(hasMeasurements)[0];
+    if(donor){ measSrc = donor; measFrom = donor.orderId; }
+  }
+  var measRows = MEAS.filter(function(m){ return measSrc.meas && measSrc.meas[m.k]; })
+    .map(function(m){ return '<div class="m"><label>'+m.label+'</label><input type="text" value="'+esc(measSrc.meas[m.k])+'" readonly><div class="hint">'+m.hint+'</div></div>'; }).join('');
 
   var payLog = (o.payments||[]).map(function(p, pi){
     var gc = isGCashMode(p.mode);
@@ -6826,18 +6933,48 @@ function openOrder(id){
       '<div class="kv"><span class="k"><b>Balance</b></span><span class="v mono" style="color:'+(tt.balance>0?'var(--bad)':'var(--ok)')+'"><b>'+peso(tt.balance)+'</b></span></div>'+
       '</div>'
     : '';
-  var past = customerHistory(o).filter(function(x){ return x.ticketId !== o.ticketId; });
-  var pastHTML = past.length
-    ? '<div class="card no-print"><p class="eyebrow">Same customer</p>'+
-      '<h3>'+past.length+' earlier order'+(past.length>1?'s':'')+'</h3>'+
-      past.slice(0,8).map(function(x){
-        return '<div class="kv" style="cursor:pointer" onclick="openOrder(\''+x.id+'\')">'+
-          '<span class="k">'+esc(x.orderId)+' · '+nice(x.dateOrdered)+'</span>'+
-          '<span class="v">'+esc(x.productName||'—')+(num(x.balance)>0?' · <span style="color:var(--bad)">'+peso(x.balance)+' due</span>':'')+'</span></div>';
-      }).join('')+
-      (past.length>8 ? '<p class="sub" style="margin:8px 0 0">Showing the 8 most recent.</p>' : '')+
-      '</div>'
-    : '';
+  /* The "Same customer" list used to sit here, but on a school run one name
+     can carry dozens of unrelated slips, so it filled the screen with noise
+     the counter never acts on. Past orders are still reachable through Find
+     and the reports, where they can actually be searched. */
+  var pastHTML = '';
+
+  var updateHTML =
+  '<div class="card no-print">'+
+    '<p class="eyebrow">Update</p><h3>Progress and payment</h3>'+
+    '<label>Completed</label>'+
+    '<div class="donerow">'+
+      (function(){
+        // One garment: a single Completed toggle. A set: one button per piece,
+        // so "1 pc done" / "2 pcs done" is a single tap and the state is
+        // visible without opening anything.
+        var s = '';
+        if(total <= 1){
+          s += '<button class="btn btn-sm '+(done>=1?'btn-primary':'btn-ghost')+'"'+
+               ' onclick="setComplete(\''+o.id+'\',1)">'+
+               (done>=1 ? '✓ Completed' : 'Mark completed')+'</button>';
+        } else {
+          for(var i=1;i<=total;i++){
+            s += '<button class="btn btn-sm '+(done>=i?'btn-primary':'btn-ghost')+'"'+
+                 ' onclick="setComplete(\''+o.id+'\','+i+')">'+
+                 i+' pc'+(i>1?'s':'')+' done</button>';
+          }
+        }
+        return s;
+      })()+
+      '<span class="donestate">'+
+        (done>=total&&total>0 ? 'All '+total+' finished'
+         : done>0 ? done+' of '+total+' finished'
+         : 'Not started')+'</span>'+
+    '</div>'+
+    '<div class="check'+(done?'':' off')+'" style="margin-top:6px"><input type="checkbox" id="d_recv" '+(o.isReceived?'checked':'')+(done?'':' disabled')+' onchange="quickReceive(\''+o.id+'\')"><label for="d_recv">Picked up</label></div>'+
+    ((o.lineCount>1 ? tt.balance : num(o.balance))>0 ?
+      '<hr class="rule"><label for="d_pay">Add payment ₱'+(o.lineCount>1?' (whole order · '+peso(tt.balance)+' left)':'')+'</label>'+
+      '<div class="searchbar"><input type="text" id="d_pay" inputmode="decimal" placeholder="0.00">'+
+      '<select id="d_paymode" style="max-width:110px"><option>Cash</option><option>GCash</option><option>Bank transfer</option></select>'+
+      '<button class="btn btn-primary btn-sm" onclick="addPayment(\''+o.id+'\')">Add</button></div>' : '')+
+    '<hr class="rule">'+ payLog +
+  '</div>';
 
   var html =
   '<div class="detail">'+
@@ -6847,6 +6984,7 @@ function openOrder(id){
       (cameFrom === 'sum' ? 'summary' : cameFrom === 'report' ? 'report' :
        cameFrom === 'due' ? 'due dates' : 'the list')+'</span>'+
   '</div>'+
+  '<div class="dcol dcol-a">'+
   '<div class="card">'+
     '<p class="eyebrow">'+esc(o.orderId)+' · ordered '+nice(o.dateOrdered)+'</p>'+
     '<h3>'+esc(o.firstName)+' '+esc(o.lastName)+'</h3>'+
@@ -6863,22 +7001,14 @@ function openOrder(id){
     (o.notes ? '<div class="kv"><span class="k">Notes</span><span class="v" style="max-width:60%">'+esc(o.notes)+'</span></div>' : '')+
   '</div>'+
 
-  (measRows ? '<div class="card"><p class="eyebrow">Measurements</p><h3>Tape</h3><div class="tape"><div class="tape-head"><b>'+esc(o.lastName)+'</b><span>'+esc(o.orderId)+'</span></div><div class="tape-grid">'+measRows+'</div></div></div>' : '')+
-
-  '<div class="card no-print">'+
-    '<p class="eyebrow">Update</p><h3>Progress and payment</h3>'+
-    '<div class="row c2">'+
-      '<div class="field"><label>Pieces completed</label><select id="d_comp" onchange="quickComplete(\''+o.id+'\')">'+
-        (function(){ var s='<option value="">Not started</option>'; for(var i=1;i<=total;i++){ s+='<option value="'+i+'"'+(String(done)===String(i)?' selected':'')+'>'+i+' of '+total+'</option>'; } return s; })()+
-      '</select></div>'+
-      '<div class="check'+(done?'':' off')+'"><input type="checkbox" id="d_recv" '+(o.isReceived?'checked':'')+(done?'':' disabled')+' onchange="quickReceive(\''+o.id+'\')"><label for="d_recv">Picked up</label></div>'+
-    '</div>'+
-    ((o.lineCount>1 ? tt.balance : num(o.balance))>0 ?
-      '<hr class="rule"><label for="d_pay">Add payment ₱'+(o.lineCount>1?' (whole order · '+peso(tt.balance)+' left)':'')+'</label>'+
-      '<div class="searchbar"><input type="text" id="d_pay" inputmode="decimal" placeholder="0.00">'+
-      '<select id="d_paymode" style="max-width:110px"><option>Cash</option><option>GCash</option><option>Bank transfer</option></select>'+
-      '<button class="btn btn-primary btn-sm" onclick="addPayment(\''+o.id+'\')">Add</button></div>' : '')+
-    '<hr class="rule">'+ payLog +
+  '<div class="card"><p class="eyebrow">Measurements</p><h3>Tape</h3>'+
+    (measRows
+      ? '<div class="tape"><div class="tape-head"><b>'+esc(o.lastName)+'</b>'+
+        '<span>'+esc(measSrc.orderId)+'</span></div>'+
+        '<div class="tape-grid">'+measRows+'</div></div>'+
+        (measFrom ? '<p class="sub" style="margin:8px 0 0">Taken on '+esc(measFrom)+
+                    ' — this piece is a stock size, so it shares the order\u2019s tape.</p>' : '')
+      : '<p class="sub" style="margin:0">No measurements recorded on this order.</p>')+
   '</div>'+
 
   '<div class="card no-print" id="dispatchBox">'+
@@ -6888,9 +7018,15 @@ function openOrder(id){
       '<img class="qr-thumb" src="'+orderQRUrl(o, 5)+'" alt="Order QR">'+
       '<div class="qr-side">'+
         '<p class="sub" style="margin:0 0 8px">'+
-          (labelBlockedReason(o)
-            ? '<b style="color:var(--warn)">Not ready to label — '+esc(labelBlockedReason(o))+'.</b>'
-            : 'Stick this on the garment. Scanning it at pick-up brings the order straight back here.')+
+          (function(){
+            var multi = parseInt(o.lineCount||1,10) > 1;
+            var hard  = labelBlockedReason(o, multi);   // details still missing?
+            if(hard) return '<b style="color:var(--warn)">Not ready to label — '+esc(hard)+'.</b>';
+            // On a multi-garment order a companion piece may carry no measurements
+            // of its own — that is fine, it still gets a label as part of the set.
+            if(multi && labelBlockedReason(o)) return 'No measurements on this piece, but it still labels as part of the order. Stick this on the garment.';
+            return 'Stick this on the garment. Scanning it at pick-up brings the order straight back here.';
+          })()+
         '</p>'+
         '<div class="btn-row">'+
           '<button class="btn btn-ghost btn-sm" onclick="printQRLabel(\''+o.id+'\')">Print label</button>'+
@@ -6905,8 +7041,11 @@ function openOrder(id){
     '</div>'+
   '</div>'+
 
-  ticketHTML + pastHTML + historyHTML(o) +
-  '<div id="receiptPanel" data-open="0" style="grid-column:1/-1"></div>'+
+  '</div>'+                                   /* end left column */
+  '<div class="dcol dcol-b">'+
+    updateHTML + ticketHTML + pastHTML + historyHTML(o) +
+  '</div>'+                                   /* end right column */
+  '<div id="receiptPanel" data-open="0"></div>'+
   '<div class="btn-row no-print" style="margin-bottom:24px">'+
     '<button class="btn btn-primary btn-sm" onclick="editOrder(\''+o.id+'\')">Edit order</button>'+
     (o.quick && !o.voided && o.ticketId
@@ -6930,6 +7069,23 @@ function openOrder(id){
   pushDetailHistory();
 }
 
+/* Tapping a piece count is one action instead of open-select-choose, and
+   tapping the count that is already set clears it back to not started, so the
+   same button both marks and un-marks. */
+function setComplete(id, n){
+  var o = DB.orders.filter(function(x){ return x.id===id; })[0];
+  if(!o) return;
+  var was = String(o.completedStatus || '');
+  var v = (String(n) === was) ? '' : String(n);   // tap again to undo
+  if(v && v !== was) o.completedTimestamp = stamp();
+  o.completedStatus = v;
+  if(!v){ o.isReceived=false; o.receivedTimestamp=''; o.completedTimestamp=''; }
+  var total = parseInt(o.set||1,10);
+  logEvent(o, 'Completed pieces: ' + (was || 'none') + ' → ' + (v || 'none') + ' of ' + total);
+  save(); queueSync(); openOrder(id);
+  toast(!v ? 'Back to not started'
+           : (v >= total ? 'Marked completed' : v + ' of ' + total + ' done'));
+}
 function quickComplete(id){
   var o = DB.orders.filter(function(x){ return x.id===id; })[0];
   var v = $('d_comp').value, was = o.completedStatus;
