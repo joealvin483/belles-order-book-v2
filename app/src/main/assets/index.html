@@ -778,15 +778,24 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   .pos .ln b{font-weight:700}
   .pos .big{font-size:12.5px;font-weight:700}
   .pos .wrap2{word-break:break-word}
+  /* The customer name is what the workroom and the counter actually look for
+     when hunting through a rack, so it is the largest thing on the slip —
+     bigger even than the shop name, and given room to breathe above and below. */
+  .pos .bigname{
+    font-size:15px;font-weight:700;line-height:1.2;letter-spacing:.02em;
+    margin:3px 0 2px;word-break:break-word;text-transform:uppercase;
+  }
   .pos .mgrid{display:flex;flex-wrap:wrap;gap:0 8px}
   .pos .mgrid span{white-space:nowrap}
+  /* Tape as one flowing line, pairs kept apart by slashes so a wrap never
+     glues two measurements together. */
+  .pos .mtape{word-break:break-word;line-height:1.4}
   .pos .foot{font-size:9px;text-align:center;margin-top:7px}
   .pos .qrbox{text-align:center;margin:6px 0 2px}
-  /* SVG QR: fixed physical size, printer rasterises it sharply at its own dpi */
-  .pos .qrbox .qrsvg{display:inline-block;width:22mm;height:22mm}
-  .pos .qrbox .qrsvg path{fill:#000!important}
-  .pos .qrbox .qrsvg rect{fill:#fff!important}
-  .pos .qrbox img{width:22mm;height:22mm;image-rendering:pixelated}
+  /* Sized in mm so the physical code is the same on any printer, and only ever
+     scaled up from a small source so the thermal head gets hard edges. */
+  .pos .qrbox .qrimg{display:inline-block;width:22mm;height:22mm;
+                     image-rendering:pixelated;image-rendering:crisp-edges}
   .pos .qrid{font-size:8.5px;letter-spacing:.06em;margin-top:1px;font-weight:700}
   .pos .qrhint{font-size:7.5px;letter-spacing:.04em}
 
@@ -818,19 +827,30 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   body>.pos-multi .pos:last-child{page-break-after:auto}
 
   /* QR pick-up labels */
-  body>.qlabels{display:block!important;color:#000;font-family:var(--sans)}
-  .qlabel{display:flex;gap:8px;align-items:flex-start;border:1px solid #000;border-radius:6px;
-    padding:7px;margin:0 0 6px;break-inside:avoid;page-break-inside:avoid}
-  .qlabel .ql-qr{width:24mm;height:24mm;flex:none}
-  .qlabel .ql-qr .qrsvg{display:block;width:24mm;height:24mm}
-  .qlabel .ql-qr .qrsvg path{fill:#000!important}
-  .qlabel .ql-body{flex:1;min-width:0;font-size:10px;line-height:1.3}
-  .qlabel .ql-shop{font-weight:700;font-size:9px;letter-spacing:.04em}
-  .qlabel .ql-name{font-weight:700;font-size:13px;margin-top:1px}
-  .qlabel .ql-meta{color:#333;font-size:9px;margin-bottom:3px}
-  .qlabel .ql-g{font-size:10px}
-  .qlabel .ql-line{display:flex;justify-content:space-between;font-size:10px;margin-top:2px}
-  .qlabel .ql-bal{font-weight:700;border-top:1px solid #999;padding-top:2px;margin-top:3px}
+  body>.qlabels{display:block!important;color:#000;font-family:var(--posmono)}
+  /* One column, top to bottom. Nothing floats beside anything else, so no line
+     ever gets squeezed into a narrow gutter and shredded across three rows. */
+  .qlabel{display:block;border:1px solid #000;border-radius:6px;
+    padding:7px;margin:0 0 6px;break-inside:avoid;page-break-inside:avoid;
+    text-align:center;line-height:1.3}
+  .qlabel .ql-qr{width:24mm;height:24mm;margin:0 auto 2px}
+  .qlabel .ql-qr .qrimg{display:block;width:24mm;height:24mm;margin:0 auto;
+                        image-rendering:pixelated;image-rendering:crisp-edges}
+  .qlabel .ql-no{font-size:11px;font-weight:700;letter-spacing:.08em}
+  .qlabel .ql-part{font-size:9px;letter-spacing:.06em}
+  .qlabel .ql-name{font-weight:700;font-size:17px;line-height:1.15;
+    margin:3px 0 1px;text-transform:uppercase;letter-spacing:.01em;
+    word-break:break-word;border-top:1px solid #000;padding-top:3px}
+  .qlabel .ql-meta{font-size:9.5px}
+  .qlabel .ql-item{font-size:11px;font-weight:700;margin-top:2px;word-break:break-word}
+  .qlabel .ql-addon{font-size:9.5px}
+  /* Measurements read S (16) / B (38.5-43.5); left-aligned because a wrapped
+     centred tape is very hard to follow down a narrow roll. */
+  .qlabel .ql-tape{font-size:10.5px;margin-top:3px;text-align:left;
+    word-break:break-word;border-top:1px dashed #000;padding-top:3px}
+  .qlabel .ql-tape.none{font-style:italic}
+  .qlabel .ql-note{font-size:9.5px;text-align:left;margin-top:2px;word-break:break-word}
+  .qlabel .ql-due{font-size:9.5px;margin-top:2px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -4554,7 +4574,7 @@ function renderReport(){
                (o.needsDetails ? '<span class="pill due">details</span>' : '') +
                (o.hasProof ? '<span class="pill rcv">proof</span>' : '');
     var mm = MEAS.filter(function(m){ return o.meas && o.meas[m.k]; })
-      .map(function(m){ return '<span><b>'+m.label+'</b> ('+esc(o.meas[m.k])+')</span>'; }).join('');
+      .map(function(m){ return '<span><b>'+m.label+'</b> ('+esc(o.meas[m.k])+')</span>'; }).join('<span class="msep"> / </span>');
     var meas = mm
       ? '<div class="rmeas">'+mm+'</div>'
       : (o.needsDetails ? '<div class="rmeas none">no measurements yet</div>' : '');
@@ -4761,7 +4781,8 @@ function measureSlipHTML(o, withCode){
       '<div class="tag">CUTTING SLIP</div>'+
       '<div class="rule"></div>'+
       posLine('No.', esc(o.orderId)) +
-      posLine('Name', esc(o.lastName ? o.lastName+', '+o.firstName : '—')) +
+      '<div class="bigname">' +
+        esc(o.lastName ? o.lastName + ', ' + o.firstName : '—') + '</div>' +
       (o.companySchool ? posLine('School', esc(o.companySchool)) : '') +
       posLine('Item', esc(o.productName||'') + (o.sizing ? ' ('+esc(o.sizing)+')' : '')) +
       (addonText(o) ? posLine('Add-ons', esc(addonText(o))) : '') +
@@ -4769,12 +4790,11 @@ function measureSlipHTML(o, withCode){
       (o.dateDue ? posLine('Due', nice(o.dateDue)) : '') +
       '<div class="rule solid"></div>'+
       (mm.length
-        ? '<div class="mgrid">' + mm.map(function(m){
-            return '<span>'+m.label+' ('+esc(o.meas[m.k])+')</span>'; }).join('') + '</div>'
+        ? '<div class="mtape">' + esc(measText(o)) + '</div>'
         : '<div class="foot">NO MEASUREMENTS RECORDED</div>')+
       (o.notes ? '<div class="rule"></div><div class="wrap2">'+esc(o.notes)+'</div>' : '')+
       (withCode
-        ? '<div class="qrbox">'+orderQRSvg(o, 22)+
+        ? '<div class="qrbox">'+orderQRImg(o, 22)+
           '<div class="qrid">'+esc(o.orderId)+'</div>'+
           '<div class="qrhint">Scan at pick-up</div></div>'
         : '')+
@@ -5136,47 +5156,84 @@ function askWhy(o, before, summary, id){
 var QR_PREFIX = 'BELLES:';
 
 function qrDataUrl(text, cell){
-  // qrcode-generator is global; type 0 = auto-size, M = 15% error correction
+  // qrcode-generator is global; type 0 = auto-size, M = 15% error correction.
+  // The margin argument is in pixels, so four clear modules = cell * 4. Scanners
+  // need that quiet border; a code printed tight to the text will not read.
+  var c = cell || 5;
   var qr = qrcode(0, 'M');
   qr.addData(text);
   qr.make();
-  return qr.createDataURL(cell || 5, (cell || 5) * 2);
+  return qr.createDataURL(c, c * 4);
 }
 function orderQRUrl(o, cell){
   return qrDataUrl(QR_PREFIX + o.id, cell);
 }
 
-/* ---------- crisp thermal QR ----------
-   Thermal heads (203 dpi) smear a rescaled GIF. Instead we emit a vector SVG:
-   every module is drawn as a whole unit and the printer rasterises it at its own
-   resolution, so the code stays sharp at any physical size. The svg carries no
-   width/height — the .qrbox CSS sizes it in mm, and a 4-module quiet zone plus
-   forced solid black keep it scannable straight off the roll.
-   `mm` is the finished side length in millimetres (default 20mm ≈ good for 58mm
-   paper). Returns an inline <svg> string, ready to drop into innerHTML. */
-function orderQRSvg(o, mm){
-  mm = mm || 20;
-  var qr = qrcode(0, 'M');
-  qr.addData(QR_PREFIX + o.id);
-  qr.make();
-  var count = qr.getModuleCount();
-  var quiet = 4;                       // required silent margin, in modules
-  var span  = count + quiet * 2;       // total grid the viewBox covers
-  var path  = '';
-  for(var r = 0; r < count; r++){
-    for(var c = 0; c < count; c++){
-      if(qr.isDark(r, c)){
-        // one filled 1x1 module, offset by the quiet zone
-        path += 'M' + (c + quiet) + ',' + (r + quiet) + 'h1v1h-1z';
+/* ---------- printable QR ----------
+   This has to survive two different renderers. Android's WebView happily shows
+   an inline <svg> on screen but frequently rasterises nothing for it on the
+   print page, which is why the code vanished from the cutting slip and the
+   label while the text around it still printed. A plain <img> always prints,
+   so the QR goes back to a raster.
+
+   The original blur came from the opposite mistake: the image was generated
+   large and then squeezed down by CSS, and the grey half-pixels that produced
+   were dithered into mush by the thermal head. So the image is now generated
+   SMALL and only ever scaled UP — nearest-neighbour upscaling keeps every
+   module solid black or solid white, with no grey for the printer to smear.
+
+   `mm` is the printed side length. Four modules of quiet zone are baked in. */
+/* One place that decides how a tape reads on paper: S (16) / B (38.5-43.5).
+   The slash keeps pairs from running together when a line wraps, which is the
+   difference between a cutter reading it at a glance and squinting at it. */
+function measText(src){
+  if(!src || !src.meas) return '';
+  return MEAS.filter(function(m){ return String(src.meas[m.k] || '').trim() !== ''; })
+    .map(function(m){ return m.label + ' (' + src.meas[m.k] + ')'; })
+    .join(' / ');
+}
+
+function orderQRImg(o, mm){
+  mm = mm || 24;
+  var cell = 4;                       // source pixels per module
+  var quiet = 4;                      // clear modules around the code
+  var url = '', px = 0;
+  try{
+    var qr = qrcode(0, 'M');
+    qr.addData(QR_PREFIX + o.id);
+    qr.make();
+    var count = qr.getModuleCount();
+    px = (count + quiet * 2) * cell;
+
+    // Drawn on a canvas rather than taken from the library's GIF helper: the
+    // canvas is a raster this device produced itself, which the print path
+    // handles far more dependably, and every module lands on a whole pixel.
+    var cv = document.createElement('canvas');
+    cv.width = px; cv.height = px;
+    var g = cv.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, px, px);
+    g.fillStyle = '#000';
+    for(var r = 0; r < count; r++){
+      for(var c = 0; c < count; c++){
+        if(qr.isDark(r, c)){
+          g.fillRect((c + quiet) * cell, (r + quiet) * cell, cell, cell);
+        }
       }
     }
+    url = cv.toDataURL('image/png');
+  }catch(e){
+    // Fall back to the library's own encoder rather than printing nothing.
+    try{ url = qrDataUrl(QR_PREFIX + o.id, cell); }catch(_){ return ''; }
   }
-  return '<svg class="qrsvg" viewBox="0 0 ' + span + ' ' + span + '" ' +
-         'style="width:' + mm + 'mm;height:' + mm + 'mm" ' +
-         'shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" ' +
-         'role="img" aria-label="Order code ' + esc(o.orderId || o.id) + '">' +
-         '<rect width="' + span + '" height="' + span + '" fill="#fff"/>' +
-         '<path d="' + path + '" fill="#000"/></svg>';
+  if(!url) return '';
+
+  // alt is deliberately empty. A broken image with alt text renders the order
+  // number one character per line down a 24mm column, which is what wrecked
+  // the last batch of labels — better a blank square than a shredded label.
+  return '<img class="qrimg" src="' + url + '" alt=""' +
+         (px ? ' width="' + px + '" height="' + px + '"' : '') +
+         ' style="width:' + mm + 'mm;height:' + mm + 'mm;display:block;' +
+         'image-rendering:pixelated;image-rendering:crisp-edges">';
 }
 
 /* Turns whatever the camera decoded into one of our orders, or null. */
@@ -5199,8 +5256,7 @@ function orderFromScan(text){
    customer settles it. A piece with no tape of its own borrows the order's,
    so a stock-size companion still shows the right body measurements. */
 function qrLabelHTML(o){
-  var partOf = (o.lineCount > 1)
-    ? '<span class="ql-part">' + o.lineNo + ' of ' + o.lineCount + '</span>' : '';
+  var partOf = (o.lineCount > 1) ? o.lineNo + ' of ' + o.lineCount : '';
   var n = parseInt(o.set || 1, 10);
 
   var src = o;
@@ -5208,31 +5264,29 @@ function qrLabelHTML(o){
     var donor = ticketLines(o.ticketId).filter(hasMeasurements)[0];
     if(donor) src = donor;
   }
-  var tape = MEAS.filter(function(m){ return src.meas && src.meas[m.k]; })
-    .map(function(m){
-      return '<span class="ql-m"><b>' + m.label + '</b> (' + esc(src.meas[m.k]) + ')</span>';
-    }).join('');
+  var tape = measText(src);
+
+  // Everything stacks in one column. The old layout floated the QR beside the
+  // text, which on a 48mm roll left barely 14mm for the body and tore every
+  // line into wrapped fragments.
+  var meta = [o.companySchool, o.department].filter(Boolean).map(esc).join(' / ');
 
   return '<div class="qlabel">' +
-    '<div class="ql-qr">' + orderQRSvg(o, 24) + '</div>' +
-    '<div class="ql-body">' +
-      '<div class="ql-top"><span class="ql-shop">BELLE\'S DRESS SHOP</span>' + partOf + '</div>' +
-      '<div class="ql-no">' + esc(o.orderId) + '</div>' +
-      '<div class="ql-name">' + esc(o.lastName ? o.lastName + ', ' + o.firstName : 'NAME MISSING') + '</div>' +
-      '<div class="ql-meta">' + esc(o.phoneNumber || '') +
-        (o.companySchool ? ' · ' + esc(o.companySchool) : '') +
-        (o.department ? ' · ' + esc(o.department) : '') + '</div>' +
-      '<div class="ql-item">' + esc(o.productName || 'Garment') +
-        (o.sizing ? ' (' + esc(o.sizing) + ')' : '') +
-        (n > 1 ? ' — ' + n + ' pieces' : '') + '</div>' +
-      (addonText(o) ? '<div class="ql-addon">' + esc(addonText(o)) + '</div>' : '') +
-      (tape ? '<div class="ql-tape">' + tape + '</div>'
-            : '<div class="ql-tape none">no measurements recorded</div>') +
-      (o.notes ? '<div class="ql-note">' + esc(o.notes) + '</div>' : '') +
-      '<div class="ql-foot">' +
-        '<span>' + (o.dateDue ? 'Due ' + nice(o.dateDue) : 'No due date') + '</span>' +
-      '</div>' +
-    '</div></div>';
+    '<div class="ql-qr">' + orderQRImg(o, 24) + '</div>' +
+    '<div class="ql-no">' + esc(o.orderId) + '</div>' +
+    (partOf ? '<div class="ql-part">' + partOf + '</div>' : '') +
+    '<div class="ql-name">' + esc(o.lastName ? o.lastName + ', ' + o.firstName : 'NAME MISSING') + '</div>' +
+    (meta ? '<div class="ql-meta">' + meta + '</div>' : '') +
+    (o.phoneNumber ? '<div class="ql-meta">' + esc(o.phoneNumber) + '</div>' : '') +
+    '<div class="ql-item">' + esc(o.productName || 'Garment') +
+      (o.sizing ? ' (' + esc(o.sizing) + ')' : '') +
+      (n > 1 ? ' — ' + n + ' pcs' : '') + '</div>' +
+    (addonText(o) ? '<div class="ql-addon">+ ' + esc(addonText(o)) + '</div>' : '') +
+    (tape ? '<div class="ql-tape">' + esc(tape) + '</div>'
+          : '<div class="ql-tape none">no measurements</div>') +
+    (o.notes ? '<div class="ql-note">' + esc(o.notes) + '</div>' : '') +
+    (o.dateDue ? '<div class="ql-due">Due ' + nice(o.dateDue) + '</div>' : '') +
+  '</div>';
 }
 
 /* A label is a promise to the workroom, so it is refused while the order is
@@ -6751,13 +6805,19 @@ function setPrintStyle(kind){
   }
   if(kind === 'label'){
     var lw = parseInt(DB.paper || '58', 10);
-    st.textContent = '@media print{@page{size:' + lw + 'mm auto;margin:2mm}' +
-                     'body>.qlabels{width:' + (lw - 4) + 'mm}' +
-                     '.qlabel{border:none;padding:2px 0;display:block;page-break-after:always}' +
+    var inner = lw - 6;                       // usable width inside the margins
+    var qrmm = Math.min(24, inner - 6);       // never let the code touch the edges
+    st.textContent = '@media print{@page{size:' + lw + 'mm auto;margin:3mm}' +
+                     'body>.qlabels{width:' + inner + 'mm}' +
+                     '.qlabel{border:none;padding:0 0 4px;display:block;' +
+                       'width:' + inner + 'mm;page-break-after:always}' +
                      '.qlabel:last-child{page-break-after:auto}' +
-                     '.qlabel .ql-qr{width:24mm;height:24mm;display:block;margin:0 auto 3px}' +
-                     '.qlabel .ql-name{font-size:13px}' +
-                     '.qlabel .ql-tape{font-size:11px;gap:2px 8px}}';
+                     '.qlabel .ql-qr{width:' + qrmm + 'mm;height:' + qrmm + 'mm;' +
+                       'display:block;margin:0 auto 2px}' +
+                     '.qlabel .ql-qr .qrimg{width:' + qrmm + 'mm;height:' + qrmm + 'mm}' +
+                     '.qlabel .ql-name{font-size:17px;font-weight:700;line-height:1.15;' +
+                       'text-transform:uppercase;word-break:break-word}' +
+                     '.qlabel .ql-tape{font-size:10.5px;text-align:left}}';
     return;
   }
   var mm = parseInt(DB.paper || '58', 10);
@@ -6783,7 +6843,7 @@ function posReceipt(o){
   if(o.dateDue) h += posLine('Ready by', nice(o.dateDue));
   h += '<div class="rule"></div>';
   var who = String((o.firstName || '') + ' ' + (o.lastName || '')).trim();
-  h += '<div class="wrap2"><b>' + (who ? esc(who) : 'Walk-in — name to follow') + '</b></div>';
+  h += '<div class="bigname">' + (who ? esc(who) : 'Walk-in — name to follow') + '</div>';
   if(o.phoneNumber)   h += '<div class="wrap2">' + esc(o.phoneNumber) + '</div>';
   if(o.emailAddress)  h += '<div class="wrap2">' + esc(o.emailAddress) + '</div>';
   if(o.companySchool) h += '<div class="wrap2">' + esc(o.companySchool) + '</div>';
@@ -6794,9 +6854,8 @@ function posReceipt(o){
          (x.sizing ? ' (' + esc(x.sizing) + ')' : '') + '</b></div>';
     if(addonText(x)) h += '<div class="wrap2">+ ' + esc(addonText(x)) + '</div>';
     h += posLine(n > 1 ? n + ' x ' + pesoShort(x.sellingPrice) : 'Price', peso(x.orderTotal));
-    var m = MEAS.filter(function(k){ return x.meas && x.meas[k.k]; })
-      .map(function(k){ return '<span>' + k.label + ' (' + esc(x.meas[k.k]) + ')</span>'; }).join('');
-    if(m) h += '<div class="mgrid">' + m + '</div>';
+    var m = measText(x);
+    if(m) h += '<div class="mtape">' + esc(m) + '</div>';
   });
   h += '<div class="rule"></div>';
   h += posLine('Total', peso(tt.total));
@@ -6826,7 +6885,7 @@ function posReceipt(o){
   // the same code that is on the pick-up label, so this slip can be scanned
   // straight off the customer's copy at hand-off
   h += '<div class="rule"></div>';
-  h += '<div class="qrbox">' + orderQRSvg(o, 22) +
+  h += '<div class="qrbox">' + orderQRImg(o, 22) +
        '<div class="qrid">' + esc(o.orderId) + '</div>' +
        '<div class="qrhint">Scan at pick-up</div></div>';
   h += '<div class="rule"></div>';
@@ -8734,10 +8793,31 @@ function openExternal(url){
   window.open(url, '_blank');
 }
 /* WebView ignores window.print(), so ask the native print service instead. */
+/* The print sheet is built a moment before this runs, and an <img> that has not
+   finished decoding yet prints as a blank gap — which is one way a QR can go
+   missing even when the surrounding text comes out fine. So give any images on
+   the print area a chance to load first, with a short ceiling so a broken one
+   can never stall the till. */
 function printNow(){
-  var native = nativeApp();
-  if(native && native.printPage){ native.printPage(); return; }
-  window.print();
+  var fire = function(){
+    var native = nativeApp();
+    if(native && native.printPage){ native.printPage(); return; }
+    window.print();
+  };
+  var area = $('printArea');
+  var imgs = area ? [].slice.call(area.querySelectorAll('img')) : [];
+  var pending = imgs.filter(function(im){ return !im.complete; });
+  if(!pending.length){ fire(); return; }
+
+  var done = false;
+  var go = function(){ if(done) return; done = true; fire(); };
+  var left = pending.length;
+  pending.forEach(function(im){
+    var step = function(){ if(--left <= 0) go(); };
+    im.addEventListener('load', step, {once:true});
+    im.addEventListener('error', step, {once:true});
+  });
+  setTimeout(go, 1200);   // never let a stuck image block printing
 }
 function exportJSON(silent){
   DB.lastBackup = stamp(); save();
