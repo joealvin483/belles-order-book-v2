@@ -892,17 +892,15 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   .a4lab{position:relative;height:100%;text-align:left;line-height:1.25}
   .a4lab .a4-qr{position:absolute;top:0;right:0;width:16mm;height:16mm}
   .a4lab .a4-qr .qrimg{width:16mm;height:16mm;max-width:16mm}
-  .a4lab .a4-no{font-family:var(--posmono);font-weight:400;font-size:9pt;letter-spacing:.04em}
-  .a4lab .a4-part{font-family:var(--sans);font-weight:400;font-size:7pt;margin-left:6mm}
+  .a4lab .a4-no{font-family:var(--posmono);font-weight:400;font-size:10pt;letter-spacing:.04em}
+  .a4lab .a4-part{font-family:var(--sans);font-weight:400;font-size:8pt;margin-left:6mm}
   /* The name is the biggest thing on the label; it wraps rather than overflow,
      and stops short of the QR so the two never collide. */
-  /* Semibold rather than bold, and grey-black rather than pure black: still the
-     most prominent thing on the label, but noticeably less toner per sheet. */
-  .a4lab .a4-name{font-size:15pt;font-weight:600;line-height:1.1;margin:2mm 0 0;
+  .a4lab .a4-name{font-size:15.5pt;font-weight:600;line-height:1.12;margin:2.5mm 0 0;
     color:#111;text-transform:uppercase;padding-right:18mm;word-break:break-word}
-  .a4lab .a4-meta{font-size:8.5pt;margin-top:1.2mm;font-weight:400;color:#333}
-  .a4lab .a4-item{font-size:10.5pt;font-weight:500;margin-top:1.5mm;color:#111;
-    border-bottom:.4pt solid #999;padding-bottom:1.5mm;
+  .a4lab .a4-meta{font-size:9.5pt;margin-top:1.5mm;font-weight:400;color:#333}
+  .a4lab .a4-item{font-size:11.5pt;font-weight:500;margin-top:2mm;color:#111;
+    border-bottom:.4pt solid #999;padding-bottom:2mm;
     display:flex;align-items:baseline;gap:3mm}
   .a4lab .a4-prod{flex:none;font-weight:600;padding-right:3mm}
   /* Tailor sits on the product line, to the right — the workroom signs here
@@ -910,19 +908,21 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
      notes filled the cell. Checked was dropped to save the line; the tailor's
      own name is the sign-off the shop actually uses. */
   .a4lab .a4-tailor{flex:1;display:flex;align-items:baseline;gap:1.5mm;
-    font-size:8.5pt;font-weight:400;color:#333;white-space:nowrap}
+    font-size:9.5pt;font-weight:400;color:#333;white-space:nowrap}
   .a4lab .a4-tailor i{flex:1;border-bottom:.3pt solid #888;height:.9em}
-  /* Tape kept compact so eleven measurements plus a note always fit the cell. */
-  .a4lab .a4-tape{margin-top:2mm;column-count:2;column-gap:5mm;flex:none}
-  .a4lab .a4-m{display:flex;align-items:baseline;gap:1.5mm;font-size:9.5pt;
-    line-height:1.7;break-inside:avoid}
-  .a4lab .a4-m b{width:7mm;flex:none;font-weight:600;color:#111}
-  .a4lab .a4-v{font-family:var(--posmono);font-size:7.5pt;width:21.5mm;
+  /* Bigger, but line spacing tuned so eleven measurements plus a note still fit
+     the cell. Typical garments (7-8 tapes) fill it nicely; the fullest ones
+     land just inside the bottom. */
+  .a4lab .a4-tape{margin-top:2.5mm;column-count:2;column-gap:5mm;flex:none}
+  .a4lab .a4-m{display:flex;align-items:baseline;gap:1.5mm;font-size:10.5pt;
+    line-height:1.85;break-inside:avoid}
+  .a4lab .a4-m b{width:7.5mm;flex:none;font-weight:600;color:#111}
+  .a4lab .a4-v{font-family:var(--posmono);font-size:8pt;width:22.5mm;
     white-space:nowrap;flex:none;font-weight:400;color:#222}
   .a4lab .a4-fix{flex:1;border-bottom:.3pt dotted #888;height:.9em}
-  .a4lab .a4-none{font-style:italic;font-size:9.5pt;margin-top:2mm}
+  .a4lab .a4-none{font-style:italic;font-size:10.5pt;margin-top:2.5mm}
   /* Notes get their own line and can wrap. */
-  .a4lab .a4-note{font-size:9pt;margin-top:2mm;color:#222;line-height:1.3;
+  .a4lab .a4-note{font-size:10pt;margin-top:2.5mm;color:#222;line-height:1.3;
     word-break:break-word}
   .a4lab .a4-note b{font-weight:600}
 }
@@ -1408,7 +1408,8 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
         <div class="field"><label for="rSchool">School / company</label>
           <select id="rSchool" onchange="renderReport()"></select></div>
         <div class="field"><label for="rProduct">Product</label>
-          <select id="rProduct" onchange="renderReport()"></select></div>
+          <select id="rProduct" onchange="renderReport()"></select>
+          <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="fixSelectedProductName()">Fix this product name across all orders…</button></div>
       </div>
       <div class="row c2">
         <div class="field"><label for="rStatus">Work status</label>
@@ -1764,7 +1765,7 @@ var KEY = 'belles_order_book_v1';
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B25';
+var APP_BUILD = 'B29';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -4758,6 +4759,82 @@ function measuredTicketSet(){
   });
   return s;
 }
+
+/* Customer details and the tape belong to the ORDER, not to one garment on it.
+   When a second garment is added it can end up with blank name/phone/school and
+   an empty meas — so on its own it looks like an order that "still needs
+   details", and it prints blank on the sheet. This copies whatever a sibling on
+   the same ticket already has onto any garment missing it, so pulling or
+   filtering the order gives a clean, complete record for every piece.
+
+   It only ever FILLS blanks — it never overwrites a value a garment already
+   has, so a genuinely different figure is left alone. Returns true if it
+   changed anything, so callers can decide whether to save. */
+var CUSTOMER_FIELDS = ['lastName','firstName','phoneNumber','emailAddress',
+                       'companySchool','department','gender','dateOrdered','dateDue',
+                       'block','page'];
+
+function reconcileTicket(tid){
+  if(!tid) return false;
+  var ls = ticketLines(tid);
+  if(ls.length < 2) return false;
+
+  // Best value for each field = the first non-empty one found across the ticket.
+  var best = {};
+  CUSTOMER_FIELDS.forEach(function(f){
+    for(var i=0;i<ls.length;i++){
+      var v = ls[i][f];
+      if(v !== undefined && v !== null && String(v).trim() !== ''){ best[f] = v; break; }
+    }
+  });
+  var donorMeas = ls.filter(hasMeasurements)[0];
+  var changed = false;
+
+  ls.forEach(function(o){
+    CUSTOMER_FIELDS.forEach(function(f){
+      if(best[f] !== undefined && (o[f] === undefined || o[f] === null || String(o[f]).trim() === '')){
+        o[f] = best[f]; changed = true;
+      }
+    });
+    // Fill an empty tape from the sibling that has one.
+    if(donorMeas && !hasMeasurements(o)){
+      o.meas = o.meas || {};
+      MEAS.forEach(function(m){
+        var v = donorMeas.meas && donorMeas.meas[m.k];
+        if(v !== undefined && String(v).trim() !== '' &&
+           !(o.meas[m.k] && String(o.meas[m.k]).trim() !== '')){
+          o.meas[m.k] = v; changed = true;
+        }
+      });
+    }
+    // With details and (borrowed) tape now present, clear the "needs details"
+    // flag on a companion piece that was only blank because it inherited nothing.
+    if(o.needsDetails && o.lastName){ delete o.needsDetails; changed = true; }
+    if(changed) o.updatedAt = stamp();
+  });
+  return changed;
+}
+
+/* Runs reconcileTicket over every multi-garment order in the book. Cheap enough
+   to call after any change and before a sync, so the sheet always receives
+   complete rows. */
+function reconcileAllTickets(){
+  var seen = {}, changed = false;
+  (DB.orders || []).forEach(function(o){
+    var t = o.ticketId;
+    if(!t || seen[t]) return;
+    seen[t] = 1;
+    if(reconcileTicket(t)) changed = true;
+  });
+  return changed;
+}
+
+/* "Needs details" belongs to the order: a companion garment is not itself
+   incomplete if a sibling on the same ticket carries the customer. */
+function orderNeedsDetails(o){
+  if(!o.ticketId) return !!o.needsDetails && !o.lastName;
+  return !ticketLines(o.ticketId).some(function(x){ return x.lastName; });
+}
 /* Paid state belongs to the ORDER, not to one garment on it. */
 function orderPaidText(o){
   var ls = o.ticketId ? ticketLines(o.ticketId) : [o];
@@ -6341,6 +6418,11 @@ function syncNow(manual){
   var c = syncCfg();
   if(!c.url){ if(manual) toast('Add the web app URL first'); renderSync(); return; }
   if(syncing){ if(manual) toast('A sync is already running'); return; }
+  // Fill any blanks across multi-garment orders first, so every row that goes
+  // up to the sheet carries the full customer details and tape. A companion
+  // garment that inherited nothing at creation gets completed here, and because
+  // reconcile stamps updatedAt, the newly-filled rows are picked up as unsynced.
+  if(reconcileAllTickets()) save();
   if(typeof navigator !== 'undefined' && navigator.onLine === false){
     c.lastMsg = 'Offline — ' + unsyncedOrders().length + ' order(s) waiting';
     renderSync(); if(manual) toast('No internet — orders stay queued'); return;
@@ -8039,7 +8121,7 @@ function filteredOrders(){
       case 'ready':    if(!(done >= total && !o.isReceived)) return false; break;
       case 'received': if(!o.isReceived) return false; break;
       case 'overdue':  if(o.isReceived || !o.dateDue || o.dateDue >= today0) return false; break;
-      case 'needs':    if(!o.needsDetails) return false; break;
+      case 'needs':    if(!orderNeedsDetails(o)) return false; break;
       // Garments nobody has taken a tape to yet — the workroom cannot cut these.
       // Measured is judged across the whole order, so a stock-size companion
       // does not show up as unmeasured when the customer has been taped.
@@ -8984,6 +9066,7 @@ function prodRow(p, i){
         '<button class="btn btn-ghost btn-sm" onclick="addSizePrice('+i+')">Add</button>'+
       '</div>'+
       '<button class="btn btn-ghost btn-sm" style="margin-top:12px;width:100%" onclick="cpOne('+i+')">Copy '+esc(p.name)+' to other departments…</button>'+
+      '<button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%" onclick="renameProduct('+i+')">Rename '+esc(p.name)+'…</button>'+
       '<button class="btn btn-danger btn-sm" style="margin-top:8px" onclick="removeProduct('+i+')">Remove '+esc(p.name)+'</button>'+
     '</div></div>';
 }
@@ -9033,6 +9116,81 @@ function removeProduct(i){
     DB.products.splice(i,1); openProd = null;
     save(); renderProducts(); refreshProductChoices(); toast('Removed ' + p.name);
   });
+}
+
+/* Rename a product name across every order that has it, whether or not it is
+   still a catalogue product. Useful for cleaning up an old spelling like
+   "CLINICAL (F)" that lingers on a handful of orders after the catalogue and
+   the sheet were already fixed. */
+function mergeProductName(oldName, next){
+  oldName = String(oldName || '').trim();
+  next = String(next || '').trim();
+  if(!oldName || !next || oldName === next) return 0;
+  var at = stamp(), n = 0;
+  DB.products.forEach(function(x){ if(x.name === oldName) x.name = next; });
+  DB.orders.forEach(function(o){
+    if(o.productName === oldName){
+      o.productName = next; o.updatedAt = at; n++;
+      logEvent(o, 'Product renamed "' + oldName + '" -> "' + next + '".', true);
+    }
+  });
+  if(n){ save(); queueSync(); }
+  return n;
+}
+
+/* Called from the report Product filter: rename whatever product is currently
+   picked there across every order, even if it is an old orphan name with no
+   catalogue entry left. This is the on-the-spot cleanup for a stray spelling
+   that keeps showing up in the dropdown. */
+function fixSelectedProductName(){
+  var sel = $('rProduct');
+  var oldName = sel ? sel.value : '';
+  if(!oldName){ toast('Pick the product to fix first'); return; }
+  var count = DB.orders.filter(function(o){ return o.productName === oldName; }).length;
+  var next = prompt('Rename "' + oldName + '" (on ' + count + ' order(s)) to:', oldName);
+  if(next == null) return;
+  next = String(next).trim();
+  if(!next || next === oldName){ toast('Name unchanged'); return; }
+  var n = mergeProductName(oldName, next);
+  renderReport(); refreshProductChoices();
+  toast(n ? n + ' order(s) renamed to ' + next + ' — sync to update the sheet'
+          : 'No orders had that name');
+}
+
+/* Rename a product and carry the new name onto every order that used the old
+   one. The product name is stored as plain text on each order (that is what
+   prints and what the sheet shows), so renaming only the catalogue would leave
+   old orders reading the old name — which is exactly the "CLINICAL (F)" that
+   lingered after the sheet was edited. Every product line that shares the old
+   name is renamed here, stamped as changed so it re-syncs, and the catalogue
+   entries follow. */
+function renameProduct(i){
+  var p = DB.products[i];
+  if(!p) return;
+  var oldName = p.name;
+  var next = prompt('Rename "' + oldName + '" to:', oldName);
+  if(next == null) return;
+  next = String(next).trim();
+  if(!next || next === oldName){ toast('Name unchanged'); return; }
+
+  var hits = DB.orders.filter(function(o){ return o.productName === oldName; });
+  var doRename = function(){
+    var n = mergeProductName(oldName, next);
+    openProd = null;
+    renderProducts(); refreshProductChoices();
+    toast('Renamed to ' + next + (n ? ' · ' + n + ' order(s) updated' : ''));
+  };
+
+  if(hits.length){
+    ask({ title:'Rename on existing orders too?',
+          body: hits.length + ' order(s) currently use "' + oldName + '". '+
+                'They will be renamed to "' + next + '" and re-sent to the sheet on the next sync.',
+          kind:'confirm', okLabel:'Rename all' }, function(yes){
+      if(yes) doRename();
+    });
+  } else {
+    doRename();
+  }
 }
 
 function setProdPrice(i, v){
