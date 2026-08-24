@@ -88,6 +88,33 @@ header .hbtn+.hbtn{margin-left:7px}
 .wrap{max-width:960px;margin:0 auto;padding:14px 14px 8px}
 .view{display:none}
 .view.on{display:block}
+/* Says outright that a tape belongs to a different garment on the order, so a
+   borrowed measurement is never mistaken for one taken on this piece. */
+/* Print chooser. The body can get long, so it scrolls inside the dialog rather
+   than pushing the Print button off the bottom of the screen. */
+.askbox.wide{max-width:560px}
+.askbox .askbody.pickbody{max-height:58vh;overflow-y:auto;white-space:normal;
+  margin-bottom:10px;padding-right:4px}
+.pickhead{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--rose);margin:12px 0 4px}
+.pickhead:first-child{margin-top:0}
+.picknote{font-size:12.5px;color:var(--muted);margin:0 0 6px}
+.pickgrid{display:flex;flex-direction:column;gap:1px}
+.pickgrid.cols{display:grid;grid-template-columns:1fr 1fr;gap:1px 8px}
+.pickrow{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:9px;
+  cursor:pointer;font-size:14px;line-height:1.3;color:var(--ink)}
+.pickrow:hover{background:var(--blush)}
+.pickrow input[type=checkbox]{
+  width:18px!important;height:18px!important;min-height:0!important;flex:none;
+  margin:0!important;padding:0!important;accent-color:var(--rose);
+}
+.pickrow span{flex:1;min-width:0}
+@media (max-width:560px){ .pickgrid.cols{grid-template-columns:1fr} }
+.borrowed{
+  background:var(--blush);border:1px solid var(--rose);border-radius:10px;
+  padding:8px 10px;margin:0 0 10px;font-size:13px;line-height:1.4;
+}
+.tape.isborrowed{opacity:.92}
 .card{
   background:var(--paper);border:1px solid var(--line);border-radius:16px;
   padding:18px;margin-bottom:14px;box-shadow:var(--shadow);
@@ -179,13 +206,16 @@ input:required:invalid:not(:placeholder-shown){border-color:#E7B7B2}
 }
 .askbox h3{margin:0 0 6px;font-size:18px;font-weight:600;color:var(--ink);letter-spacing:-0.015em}
 .askbox .askbody{margin:0 0 14px;font-size:14.5px;line-height:1.5;color:var(--muted);white-space:pre-line}
-.askbox input{
+/* Scoped to text-like inputs on purpose. This used to match every input in the
+   dialog, which blew a checkbox up to full width and shoved its label off the
+   edge of the box. */
+.askbox input:not([type=checkbox]):not([type=radio]){
   width:100%;min-height:52px;padding:12px 14px;margin-bottom:14px;
   border:1px solid var(--line);border-radius:12px;background:var(--canvas);
   font-family:var(--sans);font-size:18px;color:var(--ink);
   font-variant-numeric:tabular-nums;
 }
-.askbox input:focus{outline:none;border-color:var(--rose);background:#fff}
+.askbox input:not([type=checkbox]):not([type=radio]):focus{outline:none;border-color:var(--rose);background:#fff}
 .askchoice{display:flex;flex-direction:column;gap:9px;margin-bottom:14px}
 .askchoice .btn{width:100%;justify-content:flex-start;text-align:left}
 .askfoot{display:flex;gap:9px}
@@ -792,10 +822,9 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   .pos .mtape{word-break:break-word;line-height:1.4}
   .pos .foot{font-size:9px;text-align:center;margin-top:7px}
   .pos .qrbox{text-align:center;margin:6px 0 2px}
-  /* Sized in mm so the physical code is the same on any printer, and only ever
-     scaled up from a small source so the thermal head gets hard edges. */
-  .pos .qrbox .qrimg{display:inline-block;width:22mm;height:22mm;
-                     image-rendering:pixelated;image-rendering:crisp-edges}
+  /* No width here on purpose: the image carries its own pixel size, drawn 1:1,
+     and any CSS size set in mm makes it vanish from the printed page. */
+  .pos .qrbox .qrimg{display:block;margin:0 auto}
   .pos .qrid{font-size:8.5px;letter-spacing:.06em;margin-top:1px;font-weight:700}
   .pos .qrhint{font-size:7.5px;letter-spacing:.04em}
 
@@ -833,9 +862,8 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   .qlabel{display:block;border:1px solid #000;border-radius:6px;
     padding:7px;margin:0 0 6px;break-inside:avoid;page-break-inside:avoid;
     text-align:center;line-height:1.3}
-  .qlabel .ql-qr{width:24mm;height:24mm;margin:0 auto 2px}
-  .qlabel .ql-qr .qrimg{display:block;width:24mm;height:24mm;margin:0 auto;
-                        image-rendering:pixelated;image-rendering:crisp-edges}
+  .qlabel .ql-qr{margin:0 auto 2px}
+  .qlabel .ql-qr .qrimg{display:block;margin:0 auto}
   .qlabel .ql-no{font-size:11px;font-weight:700;letter-spacing:.08em}
   .qlabel .ql-part{font-size:9px;letter-spacing:.06em}
   .qlabel .ql-name{font-weight:700;font-size:17px;line-height:1.15;
@@ -851,6 +879,52 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   .qlabel .ql-tape.none{font-style:italic}
   .qlabel .ql-note{font-size:9.5px;text-align:left;margin-top:2px;word-break:break-word}
   .qlabel .ql-due{font-size:9.5px;margin-top:2px}
+  .qlabel .ql-tailor{font-size:10px;margin-top:5px;letter-spacing:.02em}
+  .qlabel .ql-build{font-size:7px;margin-top:2px;letter-spacing:.08em}
+  /* Six-up tag sheet. The cell border is the cut line. No body> prefix: the
+     print area is not always a direct child of body, and when the selector
+     failed to match the cells fell back to full-width blocks — which is why
+     only three printed per page instead of six. */
+  .qlabels.a4grid{display:grid!important;grid-template-columns:1fr 1fr;gap:0;width:auto}
+  .a4grid .a4cell{border:.4pt dashed #999;padding:5mm;height:88mm;
+    box-sizing:border-box;overflow:hidden;break-inside:avoid;page-break-inside:avoid;
+    font-family:var(--sans);color:#000;position:relative}
+  .a4lab{position:relative;height:100%;text-align:left;line-height:1.25}
+  .a4lab .a4-qr{position:absolute;top:0;right:0;width:16mm;height:16mm}
+  .a4lab .a4-qr .qrimg{width:16mm;height:16mm;max-width:16mm}
+  .a4lab .a4-no{font-family:var(--posmono);font-weight:400;font-size:9pt;letter-spacing:.04em}
+  .a4lab .a4-part{font-family:var(--sans);font-weight:400;font-size:7pt;margin-left:6mm}
+  /* The name is the biggest thing on the label; it wraps rather than overflow,
+     and stops short of the QR so the two never collide. */
+  /* Semibold rather than bold, and grey-black rather than pure black: still the
+     most prominent thing on the label, but noticeably less toner per sheet. */
+  .a4lab .a4-name{font-size:15pt;font-weight:600;line-height:1.1;margin:2mm 0 0;
+    color:#111;text-transform:uppercase;padding-right:18mm;word-break:break-word}
+  .a4lab .a4-meta{font-size:8.5pt;margin-top:1.2mm;font-weight:400;color:#333}
+  .a4lab .a4-item{font-size:10.5pt;font-weight:500;margin-top:1.5mm;color:#111;
+    border-bottom:.4pt solid #999;padding-bottom:1.5mm;
+    display:flex;align-items:baseline;gap:3mm}
+  .a4lab .a4-prod{flex:none;font-weight:600;padding-right:3mm}
+  /* Tailor sits on the product line, to the right — the workroom signs here
+     instead of a separate row at the bottom that got clipped once the tape and
+     notes filled the cell. Checked was dropped to save the line; the tailor's
+     own name is the sign-off the shop actually uses. */
+  .a4lab .a4-tailor{flex:1;display:flex;align-items:baseline;gap:1.5mm;
+    font-size:8.5pt;font-weight:400;color:#333;white-space:nowrap}
+  .a4lab .a4-tailor i{flex:1;border-bottom:.3pt solid #888;height:.9em}
+  /* Tape kept compact so eleven measurements plus a note always fit the cell. */
+  .a4lab .a4-tape{margin-top:2mm;column-count:2;column-gap:5mm;flex:none}
+  .a4lab .a4-m{display:flex;align-items:baseline;gap:1.5mm;font-size:9.5pt;
+    line-height:1.7;break-inside:avoid}
+  .a4lab .a4-m b{width:7mm;flex:none;font-weight:600;color:#111}
+  .a4lab .a4-v{font-family:var(--posmono);font-size:7.5pt;width:21.5mm;
+    white-space:nowrap;flex:none;font-weight:400;color:#222}
+  .a4lab .a4-fix{flex:1;border-bottom:.3pt dotted #888;height:.9em}
+  .a4lab .a4-none{font-style:italic;font-size:9.5pt;margin-top:2mm}
+  /* Notes get their own line and can wrap. */
+  .a4lab .a4-note{font-size:9pt;margin-top:2mm;color:#222;line-height:1.3;
+    word-break:break-word}
+  .a4lab .a4-note b{font-weight:600}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -1133,12 +1207,17 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
             <option value="ready">Finished, not picked up</option>
             <option value="received">Picked up</option>
             <option value="overdue">Overdue</option>
+            <option value="nomeas">No measurements yet</option>
+            <option value="hasmeas">With measurements — ready to cut</option>
+            <option value="needs">Missing customer details</option>
           </select></div>
         <div class="field"><label for="fText">Name or order no.</label><input type="text" id="fText" oninput="renderSummary()" placeholder="Optional"></div>
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary btn-sm" onclick="printSummary()">Print this report</button>
-        <button class="btn btn-ghost btn-sm" onclick="exportFiltered()">Export this to CSV</button>
+        <button class="btn btn-primary btn-sm" onclick="printPicker('summary')">Print summary…</button>
+        <button class="btn btn-primary btn-sm" onclick="printLabelsA4('summary')">Print A4 tags</button>
+        <button class="btn btn-ghost btn-sm" onclick="printLabelsRoll('summary')">Tags on roll</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportFiltered()">Export to CSV</button>
         <button class="btn btn-ghost btn-sm" onclick="resetFilters()">Clear filters</button>
       </div>
     </div>
@@ -1339,6 +1418,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
             <option value="ready">Finished, not collected</option>
             <option value="collected">Collected</option>
             <option value="nomeas">Missing measurements</option>
+            <option value="hasmeas">With measurements — ready to cut</option>
           </select></div>
         <div class="field"><label for="rGroup">Group the sheet by</label>
           <select id="rGroup" onchange="renderReport()">
@@ -1369,8 +1449,10 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
           </select></div>
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary btn-sm" onclick="printAuditSlip()">Print audit slip</button>
-        <button class="btn btn-ghost btn-sm" onclick="printDayReport()">Print full A4 report</button>
+        <button class="btn btn-primary btn-sm" onclick="printPicker('report')">Print summary…</button>
+        <button class="btn btn-primary btn-sm" onclick="printLabelsA4('report')">Print A4 tags</button>
+        <button class="btn btn-ghost btn-sm" onclick="printAuditSlip()">Audit slip (roll)</button>
+        <button class="btn btn-ghost btn-sm" onclick="printLabelsRoll('report')">Tags on roll</button>
         <button class="btn btn-ghost btn-sm" onclick="exportDayCSV()">Export CSV</button>
       </div>
       <div class="row c2">
@@ -1511,6 +1593,12 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
           <option value="58">58 mm — small thermal roll</option>
           <option value="80">80 mm — wide thermal roll</option>
         </select>
+      </div>
+      <div class="field">
+        <label>QR not printing?</label>
+        <button class="btn btn-ghost btn-sm" onclick="printQRTest()">Print QR test</button>
+        <p class="sub" style="margin:6px 0 0">Prints the same code five ways, labelled A to E.
+          Whichever letters come out clean tell us what this printer accepts.</p>
       </div>
     </div>
 
@@ -1672,6 +1760,11 @@ var MEAS = [
 ];
 
 var KEY = 'belles_order_book_v1';
+/* Printed small on every slip and shown in Setup. Without this there is no way
+   to tell from a printout which build produced it, which cost us several rounds
+   of chasing bugs that had already been fixed in a version not yet installed.
+   Bump this whenever index.html changes. */
+var APP_BUILD = 'B25';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -4184,6 +4277,7 @@ function reportRows(){
   var school = $('rSchool') ? $('rSchool').value : '';
   var prod   = $('rProduct') ? $('rProduct').value : '';
   var status = $('rStatus') ? $('rStatus').value : 'all';
+  var measuredR = measuredTicketSet();
   return DB.orders.filter(function(o){
     var on = o.slipDate || o.dateOrdered || '';
     if(on < r.from || on > r.to) return false;
@@ -4193,11 +4287,13 @@ function reportRows(){
     if(prod   && o.productName   !== prod)   return false;
     if(status !== 'all'){
       var done = parseInt(o.completedStatus||0,10), total = parseInt(o.set||1,10);
-      var hasMeas = MEAS.some(function(m){ return o.meas && o.meas[m.k]; });
+      // Measured belongs to the customer on the order, not to one garment.
+      var hasMeas = measuredR[o.ticketId || o.id] ? true : false;
       if(status === 'wip'       && done >= total) return false;
       if(status === 'ready'     && !(done >= total && total > 0 && !o.isReceived)) return false;
       if(status === 'collected' && !o.isReceived) return false;
       if(status === 'nomeas'    && hasMeas) return false;
+      if(status === 'hasmeas'   && !hasMeas) return false;
     }
     return true;
   }).sort(function(a,b){
@@ -4642,6 +4738,26 @@ function hasMeasurements(o){
     return o.meas && String(o.meas[m.k] || '').trim() !== '';
   });
 }
+
+/* A tape is taken off a PERSON, not off a garment. Once a customer has been
+   measured for an order, every piece on that order is measured — a stock-size
+   lab gown sitting beside a tailored departmental does not need its own tape.
+   So anything that asks "has this been measured yet" works at order level. */
+function hasOrderMeasurements(o){
+  if(hasMeasurements(o)) return true;
+  if(!o.ticketId) return false;
+  return ticketLines(o.ticketId).some(hasMeasurements);
+}
+
+/* Order ids whose ticket has a tape somewhere on it. Built once per filter run
+   so a list of several hundred orders does not re-scan the book for each row. */
+function measuredTicketSet(){
+  var s = {};
+  (DB.orders || []).forEach(function(o){
+    if(hasMeasurements(o)) s[o.ticketId || o.id] = 1;
+  });
+  return s;
+}
 /* Paid state belongs to the ORDER, not to one garment on it. */
 function orderPaidText(o){
   var ls = o.ticketId ? ticketLines(o.ticketId) : [o];
@@ -4677,8 +4793,7 @@ function printMeasureSheet(){
 
   var groupBy = $('rGroup') ? $('rGroup').value : '';
   var row = function(o){
-    var any = MEAS.some(function(m){ return o.meas && o.meas[m.k]; });
-    return '<tr'+(any ? '' : ' class="nomeas"')+'>'+
+    return '<tr'+(hasOrderMeasurements(o) ? '' : ' class="nomeas"')+'>'+
       '<td>'+esc(o.orderId)+'</td>'+
       '<td>'+esc(o.lastName ? o.lastName+', '+o.firstName : '—')+'</td>'+
       '<td>'+esc(o.productName||'')+
@@ -4794,11 +4909,12 @@ function measureSlipHTML(o, withCode){
         : '<div class="foot">NO MEASUREMENTS RECORDED</div>')+
       (o.notes ? '<div class="rule"></div><div class="wrap2">'+esc(o.notes)+'</div>' : '')+
       (withCode
-        ? '<div class="qrbox">'+orderQRImg(o, 22)+
+        ? '<div class="qrbox">'+orderQRImg(o, 40)+
           '<div class="qrid">'+esc(o.orderId)+'</div>'+
           '<div class="qrhint">Scan at pick-up</div></div>'
         : '')+
       '<div class="foot">Cut by ________  Checked ________</div>'+
+      '<div class="foot">'+APP_BUILD+'</div>'+
     '</div>';
   };
   return oldBody(o);
@@ -4978,6 +5094,11 @@ function ask(opts, done){
 
   var h = '<h3>' + esc(opts.title || '') + '</h3>';
   if(opts.body) h += '<div class="askbody">' + esc(opts.body) + '</div>';
+  // bodyHTML is markup this file builds itself (never user text), used for
+  // dialogs that need real controls, like the print section picker.
+  if(opts.bodyHTML) h += '<div class="askbody' + (opts.wide ? ' pickbody' : '') + '">' +
+                          opts.bodyHTML + '</div>';
+  box.className = 'askbox' + (opts.wide ? ' wide' : '');
 
   if(kind === 'text'){
     h += '<input id="askInput" type="text"' +
@@ -5155,6 +5276,22 @@ function askWhy(o, before, summary, id){
    decoder are bundled, so both printing and scanning work with no internet. */
 var QR_PREFIX = 'BELLES:';
 
+/* What the code actually carries. The old payload was the prefix plus the long
+   internal record id, which is mixed-case and forced a denser 25-module grid.
+   The order number is short and uses only characters QR can pack in its
+   compact alphanumeric mode, so the same code drops to a 21-module grid —
+   every module is about 40% larger on paper, which is what makes it survive a
+   thermal head and any rescaling the printer driver applies. */
+function qrPayload(o){
+  var no = String(o.orderId || '').toUpperCase();
+  return /^[0-9A-Z $%*+\-.\/:]+$/.test(no) && no.length ? no : (QR_PREFIX + o.id);
+}
+function qrAddData(qr, o){
+  var no = String(o.orderId || '').toUpperCase();
+  if(/^[0-9A-Z $%*+\-.\/:]+$/.test(no) && no.length) qr.addData(no, 'Alphanumeric');
+  else qr.addData(QR_PREFIX + o.id);
+}
+
 function qrDataUrl(text, cell){
   // qrcode-generator is global; type 0 = auto-size, M = 15% error correction.
   // The margin argument is in pixels, so four clear modules = cell * 4. Scanners
@@ -5166,7 +5303,7 @@ function qrDataUrl(text, cell){
   return qr.createDataURL(c, c * 4);
 }
 function orderQRUrl(o, cell){
-  return qrDataUrl(QR_PREFIX + o.id, cell);
+  return qrDataUrl(qrPayload(o), cell);
 }
 
 /* ---------- printable QR ----------
@@ -5193,21 +5330,438 @@ function measText(src){
     .join(' / ');
 }
 
+/* ---------- printable QR ----------
+   Sized in PIXELS, never millimetres. The one version of this code that ever
+   printed correctly used px; every mm-based attempt printed nothing, because
+   this print path does not resolve mm on an image and the picture collapses to
+   no size at all.
+
+   The source is also drawn at exactly the size it is displayed, so the image is
+   never resampled — no grey half-pixels for the thermal head to dither into the
+   mush that wrecked the first batch. `mm` is the size you want on paper; it is
+   converted to px here (96 CSS px per inch) and rounded to a whole number of
+   pixels per module. */
+function qrPx(mm){ return Math.round((mm || 24) * 96 / 25.4); }
+
+/* Widest the code may be on the current roll, in CSS pixels. A code wider than
+   the paper is not shrunk to fit — it is cut off, which is how a QR loses its
+   top rows and stops scanning. 4mm clear each side. */
+function qrMaxPx(){
+  var paper = parseInt(DB.paper || '58', 10);
+  return Math.floor((paper - 8) * 96 / 25.4);
+}
+
+/* A QR built from plain elements instead of a picture. Each dark run is drawn
+   as a thick left border, which prints even on setups that drop images or
+   background colours entirely. Bulkier than an image, but it is the fallback
+   that cannot be silently swallowed by the print path. */
+function qrBlocksHTML(o, cell){
+  cell = cell || 3;
+  var qr = qrcode(0, 'M');
+  qrAddData(qr, o);
+  qr.make();
+  var count = qr.getModuleCount(), quiet = 4;
+  var pad = quiet * cell;
+  var h = '<div class="qrblocks" style="display:inline-block;background:#fff;' +
+          'padding:' + pad + 'px;font-size:0;line-height:0">';
+  for(var r = 0; r < count; r++){
+    h += '<div style="height:' + cell + 'px;white-space:nowrap;font-size:0;line-height:0">';
+    var c = 0;
+    while(c < count){
+      var dark = qr.isDark(r, c), run = 1;
+      while(c + run < count && qr.isDark(r, c + run) === dark) run++;
+      var w = run * cell;
+      h += dark
+        ? '<i style="display:inline-block;height:' + cell + 'px;width:0;vertical-align:top;border-left:' + w + 'px solid #000"></i>'
+        : '<i style="display:inline-block;height:' + cell + 'px;width:' + w + 'px;vertical-align:top"></i>';
+      c += run;
+    }
+    h += '</div>';
+  }
+  return h + '</div>';
+}
+
+/* Prints the same code five different ways, each labelled. Whichever letter
+   comes out clean on the roll tells us exactly what this printer accepts, so
+   the guessing stops. */
+function printQRTest(){
+  var o = (DB.orders && DB.orders[0]) || {id:'test', orderId:'TEST-0001'};
+  var qr = qrcode(0, 'M'); qrAddData(qr, o); qr.make();
+  var span = qr.getModuleCount() + 8;
+
+  function canvasAt(px){
+    var cell = Math.max(1, Math.round(px / span)), n = span * cell;
+    var cv = document.createElement('canvas'); cv.width = n; cv.height = n;
+    var g = cv.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0,0,n,n); g.fillStyle = '#000';
+    for(var r=0;r<qr.getModuleCount();r++) for(var c=0;c<qr.getModuleCount();c++)
+      if(qr.isDark(r,c)) g.fillRect((c+4)*cell,(r+4)*cell,cell,cell);
+    return {url: cv.toDataURL('image/png'), n: n};
+  }
+  var a = canvasAt(99), b = canvasAt(118);
+
+  var h = '<div class="pos">' +
+    '<div class="c shop">QR PRINT TEST</div>' +
+    '<div class="tag c">' + esc(o.orderId) + '</div>' +
+    '<div class="rule"></div>' +
+    '<div class="foot">A — canvas, px</div>' +
+    '<div class="qrbox"><img src="'+a.url+'" alt="" width="'+a.n+'" height="'+a.n+'" style="width:'+a.n+'px;height:'+a.n+'px;display:block;margin:0 auto"></div>' +
+    '<div class="rule"></div>' +
+    '<div class="foot">B — library image, px</div>' +
+    '<div class="qrbox"><img src="'+qrDataUrl(QR_PREFIX+o.id,3)+'" alt="" style="width:99px;height:99px;display:block;margin:0 auto"></div>' +
+    '<div class="rule"></div>' +
+    '<div class="foot">C — canvas, 118px (old size)</div>' +
+    '<div class="qrbox"><img src="'+b.url+'" alt="" width="'+b.n+'" height="'+b.n+'" style="width:118px;height:118px;display:block;margin:0 auto"></div>' +
+    '<div class="rule"></div>' +
+    '<div class="foot">D — no image, drawn blocks</div>' +
+    '<div class="qrbox">' + qrBlocksHTML(o, 3) + '</div>' +
+    '<div class="rule"></div>' +
+    '<div class="foot">E — canvas, sized in mm</div>' +
+    '<div class="qrbox"><img src="'+a.url+'" alt="" style="width:26mm;height:26mm;display:block;margin:0 auto"></div>' +
+    '<div class="rule solid"></div>' +
+    '<div class="foot">Tell which letters printed</div>' +
+  '</div>';
+
+  setPrintStyle('pos');
+  var area = $('printArea');
+  area.className = 'posview';
+  area.innerHTML = h;
+  printNow();
+  toast('Printing QR test — note which letters come out');
+}
+
+/* ---------- batch label printing ----------
+   Labels for whichever set of orders is currently filtered, either eight to an
+   A4 sheet with cut lines, or one after another down the thermal roll. Reached
+   from Summary and from Reports, so "everything with no measurements yet" can
+   go straight to the workroom as a stack of labels. */
+function labelBatch(source){
+  var list = (source === 'report') ? reportRows() : filteredOrders();
+  var out = [], seen = {};
+  list.forEach(function(o){
+    if(seen[o.id]) return;
+    seen[o.id] = 1;
+    // Companion garments on a multi-piece ticket may carry no tape of their
+    // own; they still get a label as part of the set.
+    if(labelBlockedReason(o, parseInt(o.lineCount||1,10) > 1)) return;
+    out.push(o);
+  });
+  return { ready: out, skipped: list.length - out.length };
+}
+
+/* The A4 sheet label, laid out for the master tailor rather than for scanning.
+   The name is the largest thing, the QR is demoted to a small corner mark, and
+   every measurement gets its own line with a ruled space beside it so a
+   correction can be written in on the spot. */
+function a4LabelHTML(o){
+  var src = o;
+  if(!hasMeasurements(o) && o.ticketId){
+    var donor = ticketLines(o.ticketId).filter(hasMeasurements)[0];
+    if(donor) src = donor;
+  }
+  var rows = MEAS.filter(function(m){
+    return src.meas && String(src.meas[m.k] || '').trim() !== '';
+  });
+  var n = parseInt(o.set || 1, 10);
+  var meta = [o.companySchool, o.department].filter(Boolean).map(esc).join(' / ');
+
+  var tape = rows.length
+    ? '<div class="a4-tape">' + rows.map(function(m){
+        return '<div class="a4-m"><b>' + m.label + '</b>' +
+               '<span class="a4-v">(' + esc(src.meas[m.k]) + ')</span>' +
+               '<span class="a4-fix"></span></div>';
+      }).join('') + '</div>'
+    : '<div class="a4-none">No measurements taken yet</div>';
+
+  return '<div class="a4lab">' +
+    '<div class="a4-qr">' + orderQRImg(o, 16) + '</div>' +
+    '<div class="a4-no">' + esc(o.orderId) +
+      (o.lineCount > 1 ? '<span class="a4-part">' + o.lineNo + ' of ' + o.lineCount + '</span>' : '') +
+    '</div>' +
+    '<div class="a4-name">' + esc(o.lastName ? o.lastName + ', ' + o.firstName : 'NAME MISSING') + '</div>' +
+    '<div class="a4-meta">' + meta + (o.phoneNumber ? '  ' + esc(o.phoneNumber) : '') + '</div>' +
+    '<div class="a4-item">' +
+      '<span class="a4-prod">' + esc(o.productName || 'Garment') +
+        (o.sizing ? ' (' + esc(o.sizing) + ')' : '') +
+        (n > 1 ? ' - ' + n + ' pcs' : '') + '</span>' +
+      '<span class="a4-tailor">Tailor: <i></i></span>' +
+    '</div>' +
+    (addonText(o) ? '<div class="a4-meta">+ ' + esc(addonText(o)) + '</div>' : '') +
+    (src !== o ? '<div class="a4-meta">tape from ' + esc(src.orderId) + '</div>' : '') +
+    tape +
+    (o.notes ? '<div class="a4-note"><b>Note:</b> ' + esc(o.notes) + '</div>' : '') +
+  '</div>';
+}
+
+/* ---------- print chooser ----------
+   The choices live here rather than being read back off the dialog. The dialog
+   is emptied the moment it closes, so reading the boxes in the callback found
+   nothing ticked and printed a blank page every time. Each box writes straight
+   into this object as it is clicked, and it also remembers the last set-up. */
+var PRINT_WANT = {
+  head:0, tot:0,                       // heading block, totals block (off by default)
+  list:1, lab:0,                       // which documents
+  meas:1,                              // show the tape columns on the list
+  phone:0, school:1, dept:1, prod:1,   // which columns on the order list
+  ordered:1, due:0, total:0, paid:0, balance:0, status:0, notes:1
+};
+function printWantSet(k, on){ PRINT_WANT[k] = on ? 1 : 0; }
+
+/* Column definitions: key, heading, width in mm, and how the cell is filled.
+   Order number and customer are always printed — a row you cannot identify is
+   no use to anyone — so they are not offered as choices. */
+var PRINT_COLS = [
+  ['phone',   'Phone',    20, function(g,o){ return esc(o.phoneNumber||''); }],
+  ['school',  'School',   16, function(g,o){ return esc(o.companySchool||''); }],
+  ['dept',    'Dept',     14, function(g,o){ return esc(o.department||''); }],
+  ['prod',    'Garments', 26, function(g,o){ return esc(g.products)+(g.count>1?' ('+g.count+')':''); }],
+  ['ordered', 'Ordered',  16, function(g){ return nice(g.dateOrdered); }],
+  ['due',     'Due',      16, function(g){ return nice(g.dateDue); }],
+  ['total',   'Total',    17, function(g){ return peso(g.total); }, 1],
+  ['paid',    'Paid',     17, function(g){ return peso(g.paid); }, 1],
+  ['balance', 'Balance',  17, function(g){ return peso(g.balance); }, 1],
+  ['status',  'Status',   16, function(g){ return esc(ticketStatusText(g)); }],
+  ['notes',   'Notes',    30, function(g,o){ return esc(o.notes||''); }]
+];
+
+function printPicker(source){
+  var isRep = (source === 'report');
+  function box(k, label){
+    return '<label class="pickrow"><input type="checkbox" id="pk_'+k+'"'+
+      (PRINT_WANT[k]?' checked':'')+
+      ' onchange="printWantSet(\''+k+'\',this.checked)"><span>'+label+'</span></label>';
+  }
+  var body =
+    '<p class="pickhead">Print</p><div class="pickgrid">'+
+      box('list', 'Summary sheet — the order list (A4 landscape)')+
+      box('lab',  'Also add garment tags after it (6 per A4 sheet)')+
+    '</div>'+
+    '<p class="pickhead">Columns on the summary sheet</p>'+
+    '<p class="picknote">Order number and customer name are always shown.</p>'+
+    '<div class="pickgrid cols">'+
+      box('meas', 'Measurements')+
+      PRINT_COLS.map(function(c){ return box(c[0], c[1]); }).join('')+
+    '</div>'+
+    '<p class="pickhead">Extras</p><div class="pickgrid">'+
+      box('head', 'Heading, date and filters used')+
+      box('tot',  'Totals box at the top')+
+      (isRep ? box('pay', 'Payment breakdown by method') : '')+
+    '</div>';
+
+  ask({ title:'What should be printed?', bodyHTML:body, wide:true,
+        kind:'confirm', okLabel:'Print' }, function(yes){
+    if(yes) runPrint(source);
+  });
+}
+
+function runPrint(source){
+  var isRep = (source === 'report');
+  var want  = PRINT_WANT;
+  var list  = isRep ? reportRows() : filteredOrders();
+  if(!list.length){ toast('Nothing matches those filters'); return; }
+  if(!want.list && !want.lab){
+    toast('Pick the summary sheet, the tags, or both');
+    return;
+  }
+
+  var h = '';
+  if(want.list && want.head){
+    h += '<div class="rhead"><div class="rtitle">BELLE\'S DRESS SHOP</div>'+
+      '<div class="rsub">'+(isRep?'Day book':'Order report')+' · '+
+        esc(isRep ? reportCaption() : filterCaption())+'</div>'+
+      '<div class="rsub">Printed '+esc(stampNice(stamp()))+
+        ((DB.device && DB.device.name) ? ' · '+esc(DB.device.name) : '')+
+        (currentUser() ? ' · '+esc(currentUser()) : '')+' · '+APP_BUILD+'</div></div>';
+  }
+  if(want.list && want.tot)  h += printTotalsBlock(list);
+  if(want.list)              h += printListBlock(list);
+  if(want.list && want.pay && isRep) h += printPayBlock(list);
+
+  var area = $('printArea');
+  if(want.lab){
+    var b = labelBatch(source);
+    if(!b.ready.length && !h){
+      toast(b.skipped ? 'Those orders still need customer details' : 'Nothing to label');
+      return;
+    }
+    var cells = b.ready.map(function(o){
+      return '<div class="a4cell">' + a4LabelHTML(o) + '</div>';
+    }).join('');
+    if(h){
+      setPrintStyle('reportA4');
+      area.className = 'report';
+      area.innerHTML = h + '<div class="qlabels a4grid labelpage">' + cells + '</div>';
+    } else {
+      setPrintStyle('labelA4');
+      area.className = 'qlabels a4grid';
+      area.innerHTML = cells;
+    }
+  } else {
+    setPrintStyle('reportA4');
+    area.className = 'report';
+    area.innerHTML = h;
+  }
+  printNow();
+  toast('Printing');
+}
+
+function printTotalsBlock(list){
+  var total = list.reduce(function(a,o){ return a + num(o.orderTotal); }, 0);
+  var paid  = list.reduce(function(a,o){ return a + num(o.amountPaid); }, 0);
+  var groups = ticketGroups(list, false);
+  var noMeas = list.filter(function(o){ return !hasOrderMeasurements(o); }).length;
+  var needs  = list.filter(function(o){ return o.needsDetails; }).length;
+  return '<table class="rtab kpi"><tbody>'+
+    '<tr><th>Orders</th><td class="r">'+groups.length+'</td>'+
+        '<th>Garments</th><td class="r">'+list.length+'</td></tr>'+
+    '<tr><th>Total</th><td class="r">'+peso(total)+'</td>'+
+        '<th>Collected</th><td class="r">'+peso(paid)+'</td></tr>'+
+    '<tr><th>Outstanding</th><td class="r">'+peso(total-paid)+'</td>'+
+        '<th>No measurements</th><td class="r">'+noMeas+'</td></tr>'+
+    '<tr><th>Missing details</th><td class="r">'+needs+'</td>'+
+        '<th></th><td></td></tr>'+
+  '</tbody></table>';
+}
+
+function printListBlock(list){
+  var showMeas = !!PRINT_WANT.meas;
+  var cols = PRINT_COLS.filter(function(c){ return PRINT_WANT[c[0]]; });
+
+  // With measurements shown, every garment needs its own row (a tape belongs to
+  // a garment, not to a whole ticket), so we iterate the raw list. Without them,
+  // one row per ticket is tidier. A garment with no tape of its own borrows the
+  // one taken elsewhere on the same order.
+  var rows = showMeas ? list : ticketGroups(list, false);
+
+  function tapeSrc(o){
+    if(hasMeasurements(o) || !o.ticketId) return o;
+    return ticketLines(o.ticketId).filter(hasMeasurements)[0] || o;
+  }
+
+  // Width budget across the 277mm landscape text column. Fixed columns first,
+  // then the chosen data columns, then a narrow slot for every measurement.
+  var used  = 50;                                  // No. + Customer
+  var mCols = showMeas ? MEAS.length : 0;
+  var mW    = 11;                                  // mm per measurement column
+  var avail = 277 - used - (mCols * mW);
+  var asked = cols.reduce(function(a,c){ return a + c[2]; }, 0) || 1;
+  var scale = Math.max(0.4, Math.min(1.4, avail / asked));
+
+  var colg = '<colgroup><col style="width:22mm"><col style="width:28mm">'+
+    cols.map(function(c){ return '<col style="width:'+(c[2]*scale).toFixed(1)+'mm">'; }).join('')+
+    (showMeas ? MEAS.map(function(){ return '<col style="width:'+mW+'mm">'; }).join('') : '')+
+    '</colgroup>';
+
+  var head = '<thead><tr><th>No.</th><th>Customer</th>'+
+    cols.map(function(c){ return '<th'+(c[4]?' class="r"':'')+'>'+c[1]+'</th>'; }).join('')+
+    (showMeas ? MEAS.map(function(m){ return '<th class="c">'+m.label+'</th>'; }).join('') : '')+
+    '</tr></thead>';
+
+  var body = rows.map(function(r){
+    var o = showMeas ? r : r.head;
+    var g = showMeas ? { head:o, orderNo:o.orderId, products:o.productName, count:1,
+                         total:num(o.orderTotal), paid:num(o.amountPaid),
+                         balance:num(o.balance), dateOrdered:o.dateOrdered, dateDue:o.dateDue }
+                     : r;
+    var src = showMeas ? tapeSrc(o) : null;
+    return '<tr'+(showMeas && !hasOrderMeasurements(o) ? ' class="nomeas"' : '')+'>'+
+      '<td>'+esc(g.orderNo)+'</td>'+
+      '<td>'+esc(o.lastName ? o.lastName+', '+o.firstName : '—')+'</td>'+
+      cols.map(function(c){
+        return '<td'+(c[4]?' class="r"':'')+'>'+c[3](g,o)+'</td>';
+      }).join('')+
+      (showMeas ? MEAS.map(function(m){
+        return '<td class="c">'+esc((src.meas && src.meas[m.k]) || '')+'</td>';
+      }).join('') : '')+
+    '</tr>';
+  }).join('');
+
+  var total = list.reduce(function(a,o){ return a + num(o.orderTotal); }, 0);
+  var paid  = list.reduce(function(a,o){ return a + num(o.amountPaid); }, 0);
+  var groups = ticketGroups(list, false);
+  var lead = showMeas ? (list.length+' garment(s)') : (groups.length+' order(s)');
+  var foot = '<tfoot><tr><th colspan="2">'+lead+'</th>'+
+    cols.map(function(c){
+      if(c[0]==='total')   return '<th class="r">'+peso(total)+'</th>';
+      if(c[0]==='paid')    return '<th class="r">'+peso(paid)+'</th>';
+      if(c[0]==='balance') return '<th class="r">'+peso(total-paid)+'</th>';
+      if(c[0]==='prod')    return '<th>'+list.length+' garment(s)</th>';
+      return '<th></th>';
+    }).join('')+
+    (showMeas ? MEAS.map(function(){ return '<th></th>'; }).join('') : '')+
+    '</tr></tfoot>';
+
+  return '<table class="rtab olist">'+colg+head+'<tbody>'+body+'</tbody>'+foot+'</table>';
+}
+
+function printPayBlock(list){
+  var by = {};
+  list.forEach(function(o){
+    (o.payments||[]).forEach(function(p){
+      var m = p.mode || 'Cash';
+      by[m] = (by[m] || 0) + num(p.amount);
+    });
+  });
+  var keys = Object.keys(by);
+  if(!keys.length) return '';
+  return '<table class="rtab" style="width:auto;margin-top:8px">'+
+    '<thead><tr><th>Collected by method</th><th class="r">Amount</th></tr></thead><tbody>'+
+    keys.map(function(k){
+      return '<tr><td>'+esc(k)+'</td><td class="r">'+peso(by[k])+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+
+function printLabelsA4(source){
+  // The A4 garment-tag sheet from the summary/report screen, driven by whatever
+  // filters are set there — the same 6-up layout, independent of the summary
+  // print chooser.
+  var b = labelBatch(source);
+  if(!b.ready.length){
+    toast(b.skipped ? 'Those orders still need customer details' : 'Nothing to tag in this filter');
+    return;
+  }
+  setPrintStyle('labelA4');
+  var area = $('printArea');
+  area.className = 'qlabels a4grid';
+  area.innerHTML = b.ready.map(function(o){
+    return '<div class="a4cell">' + a4LabelHTML(o) + '</div>';
+  }).join('');
+  printNow();
+  toast('Printing ' + b.ready.length + ' tag(s) on A4' +
+        (b.skipped ? ' · ' + b.skipped + ' skipped, details missing' : ''));
+}
+
+function printLabelsRoll(source){
+  var b = labelBatch(source);
+  if(!b.ready.length){
+    toast(b.skipped ? 'Those orders still need customer details' : 'Nothing to label in this filter');
+    return;
+  }
+  setPrintStyle('label');
+  var area = $('printArea');
+  area.className = 'qlabels';
+  area.innerHTML = b.ready.map(qrLabelHTML).join('');
+  printNow();
+  toast('Printing ' + b.ready.length + ' label(s)' +
+        (b.skipped ? ' · ' + b.skipped + ' skipped, details missing' : ''));
+}
+
 function orderQRImg(o, mm){
-  mm = mm || 24;
-  var cell = 4;                       // source pixels per module
-  var quiet = 4;                      // clear modules around the code
-  var url = '', px = 0;
+  // Aim for the requested size but never wider than the roll can print.
+  var want = Math.min(qrPx(mm || 24), qrMaxPx());
+  var quiet = 4, url = '', px = want;
   try{
     var qr = qrcode(0, 'M');
-    qr.addData(QR_PREFIX + o.id);
+    qrAddData(qr, o);
     qr.make();
     var count = qr.getModuleCount();
-    px = (count + quiet * 2) * cell;
+    var span  = count + quiet * 2;
+    // Whole pixels per module, so no module is a fraction of a pixel wider than
+    // its neighbour. floor (not round) keeps the result inside the cap.
+    var cell  = Math.max(2, Math.floor(want / span));
+    px = span * cell;
 
-    // Drawn on a canvas rather than taken from the library's GIF helper: the
-    // canvas is a raster this device produced itself, which the print path
-    // handles far more dependably, and every module lands on a whole pixel.
     var cv = document.createElement('canvas');
     cv.width = px; cv.height = px;
     var g = cv.getContext('2d');
@@ -5215,32 +5769,36 @@ function orderQRImg(o, mm){
     g.fillStyle = '#000';
     for(var r = 0; r < count; r++){
       for(var c = 0; c < count; c++){
-        if(qr.isDark(r, c)){
-          g.fillRect((c + quiet) * cell, (r + quiet) * cell, cell, cell);
-        }
+        if(qr.isDark(r, c)) g.fillRect((c + quiet) * cell, (r + quiet) * cell, cell, cell);
       }
     }
     url = cv.toDataURL('image/png');
   }catch(e){
-    // Fall back to the library's own encoder rather than printing nothing.
-    try{ url = qrDataUrl(QR_PREFIX + o.id, cell); }catch(_){ return ''; }
+    try{ url = qrDataUrl(qrPayload(o), 4); }catch(_){ return ''; }
   }
   if(!url) return '';
 
-  // alt is deliberately empty. A broken image with alt text renders the order
-  // number one character per line down a 24mm column, which is what wrecked
-  // the last batch of labels — better a blank square than a shredded label.
-  return '<img class="qrimg" src="' + url + '" alt=""' +
-         (px ? ' width="' + px + '" height="' + px + '"' : '') +
-         ' style="width:' + mm + 'mm;height:' + mm + 'mm;display:block;' +
-         'image-rendering:pixelated;image-rendering:crisp-edges">';
+  // width/height attributes as well as CSS: if the stylesheet is ignored on the
+  // print sheet the attributes still give the image a size. alt stays empty so a
+  // failure can never spill the order number down the page one letter per line.
+  return '<img class="qrimg" src="' + url + '" alt="" width="' + px + '" height="' + px + '"' +
+         ' style="width:' + px + 'px;height:' + px + 'px;display:block;margin:0 auto">';
 }
 
 /* Turns whatever the camera decoded into one of our orders, or null. */
 function orderFromScan(text){
   if(!text) return null;
-  var id = String(text).indexOf(QR_PREFIX) === 0 ? String(text).slice(QR_PREFIX.length) : String(text);
-  return DB.orders.filter(function(o){ return o.id === id; })[0] || null;
+  var raw = String(text).trim();
+  var id = raw.indexOf(QR_PREFIX) === 0 ? raw.slice(QR_PREFIX.length) : raw;
+  // Labels printed before the payload changed carry the internal record id;
+  // newer ones carry the order number. Accept either, so codes already stuck on
+  // garments in the workroom keep scanning.
+  var hit = DB.orders.filter(function(o){ return o.id === id; })[0];
+  if(hit) return hit;
+  var up = id.toUpperCase();
+  return DB.orders.filter(function(o){
+    return String(o.orderId || '').toUpperCase() === up;
+  })[0] || null;
 }
 
 /* ---------- printing QR labels ----------
@@ -5272,7 +5830,7 @@ function qrLabelHTML(o){
   var meta = [o.companySchool, o.department].filter(Boolean).map(esc).join(' / ');
 
   return '<div class="qlabel">' +
-    '<div class="ql-qr">' + orderQRImg(o, 24) + '</div>' +
+    '<div class="ql-qr">' + orderQRImg(o, 40) + '</div>' +
     '<div class="ql-no">' + esc(o.orderId) + '</div>' +
     (partOf ? '<div class="ql-part">' + partOf + '</div>' : '') +
     '<div class="ql-name">' + esc(o.lastName ? o.lastName + ', ' + o.firstName : 'NAME MISSING') + '</div>' +
@@ -5286,6 +5844,8 @@ function qrLabelHTML(o){
           : '<div class="ql-tape none">no measurements</div>') +
     (o.notes ? '<div class="ql-note">' + esc(o.notes) + '</div>' : '') +
     (o.dateDue ? '<div class="ql-due">Due ' + nice(o.dateDue) + '</div>' : '') +
+    '<div class="ql-tailor">Tailor: ______________</div>' +
+    '<div class="ql-build">' + APP_BUILD + '</div>' +
   '</div>';
 }
 
@@ -5296,7 +5856,7 @@ function qrLabelHTML(o){
    `allowNoMeas` is set we only insist on the customer details. */
 function labelBlockedReason(o, allowNoMeas){
   if(o.needsDetails || !o.lastName) return 'this order still needs the customer details';
-  if(!allowNoMeas && !MEAS.some(function(m){ return o.meas && o.meas[m.k]; })) return 'this order has no measurements yet';
+  if(!allowNoMeas && !hasOrderMeasurements(o)) return 'this order has no measurements yet';
   return '';
 }
 function printQRLabel(id){
@@ -6473,6 +7033,10 @@ function ticketStubHTML(g){
   if(g.corrected) pills += '<span class="pill due">Corrected</span>';
   if(g.conflict)  pills += '<span class="pill due">Check — two tablets</span>';
   pills += entryPill(g.head);
+  // Show plainly which garments still have no tape of their own, so a
+  // "No measurements yet" filter is obvious at a glance in the list.
+  if(!hasOrderMeasurements(g.head))
+    pills += '<span class="pill due">No tape</span>';
   if(g.received)  pills += '<span class="pill rcv">Picked up</span>';
   else if(g.pieces > 0 && g.done >= g.pieces) pills += '<span class="pill wip">Ready</span>';
   else pills += '<span class="pill wip">'+g.done+'/'+g.pieces+' done</span>';
@@ -6803,18 +7367,57 @@ function setPrintStyle(kind){
     st.textContent = '@media print{@page{size:A4 landscape;margin:10mm}body>.report{width:auto}}';
     return;
   }
+  if(kind === 'reportA4'){
+    /* Reports print on A4 LANDSCAPE by default — it fits more columns across,
+       including Notes, without shrinking the type. Column widths are written
+       inline by printListBlock and scaled to the 277mm landscape width. When
+       garment tags are appended after a report they need portrait, so that
+       block is given its own named @page that rotates back. */
+    st.textContent = '@media print{' +
+      '@page{size:A4 landscape;margin:10mm}' +
+      '@page tagpage{size:A4 portrait;margin:8mm}' +
+      'body>.report{width:auto}' +
+      '.report .rtab{table-layout:fixed;width:100%;font-size:7.5pt}' +
+      '.report .rtab th,.report .rtab td{padding:2.5pt 3pt;' +
+        'overflow:hidden;text-overflow:ellipsis;word-break:break-word;' +
+        'border:.3pt solid #bbb}' +
+      '.report .rtab thead th{background:#f2f2f2;font-weight:600;font-size:7.5pt}' +
+      '.report .kpi{table-layout:auto;width:auto;margin-bottom:8pt}' +
+      '.report .mtab{table-layout:fixed;font-size:7pt}' +
+      '.report .mtab .c{width:11mm;text-align:center}' +
+      /* garment tags, when included after a report, start a fresh portrait page */
+      '.labelpage{display:grid;grid-template-columns:1fr 1fr;gap:0;' +
+        'page:tagpage;break-before:page;page-break-before:always}' +
+      '.labelpage .a4cell{height:88mm;padding:5mm;border:.4pt dashed #999;' +
+        'box-sizing:border-box;overflow:hidden;break-inside:avoid}}';
+    return;
+  }
+  if(kind === 'labelA4'){
+    /* Six to a sheet: two columns by three rows on A4 portrait. 8mm page
+       margin leaves 194 x 281mm. Rows are 88mm, not the 93mm that just fits:
+       borders and rounding pushed the third row past the bottom of the sheet
+       and it printed sliced in half. 3 x 88 = 264mm leaves real headroom. Cells are kept whole so a
+       label never straddles a page break. */
+    st.textContent = '@media print{@page{size:A4 portrait;margin:8mm}' +
+      '.qlabels.a4grid{display:grid!important;grid-template-columns:1fr 1fr;' +
+        'width:auto;gap:0}' +
+      '.a4grid .a4cell{height:88mm;padding:5mm;border:.4pt dashed #999;' +
+        'box-sizing:border-box;overflow:hidden;' +
+        'break-inside:avoid;page-break-inside:avoid}' +
+      '.a4lab .a4-qr .qrimg{width:16mm;height:16mm;max-width:16mm}}';
+    return;
+  }
   if(kind === 'label'){
     var lw = parseInt(DB.paper || '58', 10);
     var inner = lw - 6;                       // usable width inside the margins
-    var qrmm = Math.min(24, inner - 6);       // never let the code touch the edges
     st.textContent = '@media print{@page{size:' + lw + 'mm auto;margin:3mm}' +
                      'body>.qlabels{width:' + inner + 'mm}' +
                      '.qlabel{border:none;padding:0 0 4px;display:block;' +
                        'width:' + inner + 'mm;page-break-after:always}' +
                      '.qlabel:last-child{page-break-after:auto}' +
-                     '.qlabel .ql-qr{width:' + qrmm + 'mm;height:' + qrmm + 'mm;' +
-                       'display:block;margin:0 auto 2px}' +
-                     '.qlabel .ql-qr .qrimg{width:' + qrmm + 'mm;height:' + qrmm + 'mm}' +
+                     /* no size here: the QR carries its own pixel size, and an
+                        mm size on the image makes it print as nothing at all */
+                     '.qlabel .ql-qr{display:block;margin:0 auto 2px}' +
                      '.qlabel .ql-name{font-size:17px;font-weight:700;line-height:1.15;' +
                        'text-transform:uppercase;word-break:break-word}' +
                      '.qlabel .ql-tape{font-size:10.5px;text-align:left}}';
@@ -6885,7 +7488,7 @@ function posReceipt(o){
   // the same code that is on the pick-up label, so this slip can be scanned
   // straight off the customer's copy at hand-off
   h += '<div class="rule"></div>';
-  h += '<div class="qrbox">' + orderQRImg(o, 22) +
+  h += '<div class="qrbox">' + orderQRImg(o, 40) +
        '<div class="qrid">' + esc(o.orderId) + '</div>' +
        '<div class="qrhint">Scan at pick-up</div></div>';
   h += '<div class="rule"></div>';
@@ -7061,12 +7664,14 @@ function openOrder(id){
   '</div>'+
 
   '<div class="card"><p class="eyebrow">Measurements</p><h3>Tape</h3>'+
+    (measFrom
+      ? '<div class="borrowed">Tape taken on '+esc(measFrom)+
+        ' — same customer, same order. This piece has no separate tape of its own.</div>'
+      : '')+
     (measRows
-      ? '<div class="tape"><div class="tape-head"><b>'+esc(o.lastName)+'</b>'+
+      ? '<div class="tape'+(measFrom?' isborrowed':'')+'"><div class="tape-head"><b>'+esc(o.lastName)+'</b>'+
         '<span>'+esc(measSrc.orderId)+'</span></div>'+
-        '<div class="tape-grid">'+measRows+'</div></div>'+
-        (measFrom ? '<p class="sub" style="margin:8px 0 0">Taken on '+esc(measFrom)+
-                    ' — this piece is a stock size, so it shares the order\u2019s tape.</p>' : '')
+        '<div class="tape-grid">'+measRows+'</div></div>'
       : '<p class="sub" style="margin:0">No measurements recorded on this order.</p>')+
   '</div>'+
 
@@ -7418,6 +8023,7 @@ function fillReportPickers(){
 }
 function filteredOrders(){
   var f = filterDefs(), today0 = ymd(today());
+  var measured = measuredTicketSet();
   return DB.orders.filter(function(o){
     var d = (f.basis === 'due') ? (o.dateDue || '') : (o.dateOrdered || '');
     if(f.from && (!d || d < f.from)) return false;
@@ -7434,6 +8040,11 @@ function filteredOrders(){
       case 'received': if(!o.isReceived) return false; break;
       case 'overdue':  if(o.isReceived || !o.dateDue || o.dateDue >= today0) return false; break;
       case 'needs':    if(!o.needsDetails) return false; break;
+      // Garments nobody has taken a tape to yet — the workroom cannot cut these.
+      // Measured is judged across the whole order, so a stock-size companion
+      // does not show up as unmeasured when the customer has been taped.
+      case 'nomeas':   if(measured[o.ticketId || o.id]) return false; break;
+      case 'hasmeas':  if(!measured[o.ticketId || o.id]) return false; break;
     }
     if(f.text){
       var hay = [o.orderId, o.lastName, o.firstName, o.phoneNumber].join(' ').toLowerCase();
