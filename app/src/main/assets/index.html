@@ -99,6 +99,15 @@ header .hbtn+.hbtn{margin-left:7px}
   color:var(--rose);margin:12px 0 4px}
 .pickhead:first-child{margin-top:0}
 .picknote{font-size:12.5px;color:var(--muted);margin:0 0 6px}
+/* Tag pick list chips */
+.pickbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 0;
+  padding:10px 12px;border:1px solid var(--rose);border-radius:12px;background:var(--blush)}
+.pickchip{display:inline-flex;align-items:center;gap:6px;background:#fff;
+  border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12.5px}
+.pickchip i{cursor:pointer;font-style:normal;font-weight:700;color:var(--rose)}
+.gatebuild{margin-top:14px;text-align:center;font-size:11px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted)}
+.pill.cut{background:#E8F0FE;color:#1A4FA0;border-color:#B8CEF0}
 .pickgrid{display:flex;flex-direction:column;gap:1px}
 .pickgrid.cols{display:grid;grid-template-columns:1fr 1fr;gap:1px 8px}
 .pickrow{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:9px;
@@ -913,7 +922,8 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   /* Bigger, but line spacing tuned so eleven measurements plus a note still fit
      the cell. Typical garments (7-8 tapes) fill it nicely; the fullest ones
      land just inside the bottom. */
-  .a4lab .a4-tape{margin-top:2.5mm;column-count:2;column-gap:5mm;flex:none}
+  .a4lab .a4-tape{margin-top:2.5mm;display:grid;grid-auto-flow:column;
+    grid-template-columns:1fr 1fr;column-gap:5mm;flex:none}
   .a4lab .a4-m{display:flex;align-items:baseline;gap:1.5mm;font-size:10.5pt;
     line-height:1.85;break-inside:avoid}
   .a4lab .a4-m b{width:7.5mm;flex:none;font-weight:600;color:#111}
@@ -960,10 +970,11 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
 <div class="gate" id="gate"><div class="gatebox">
   <div class="gatemark">Belle's Dress Shop<span>order book</span></div>
   <div id="gateBody"></div>
+  <div class="gatebuild" id="gateBuild"></div>
 </div></div>
 
 <header>
-  <div class="mark">Belle's Dress Shop<small>Order Book · Offline</small></div>
+  <div class="mark">Belle's Dress Shop<small>Order Book · Offline · <span id="hdrBuild"></span></small></div>
   <div class="grow"></div>
   <div class="savechip" id="saveChip" title="Storage status"><span class="dot"></span><span id="saveText">Ready</span></div>
   <button class="hbtn" id="dispatchBtn" onclick="go('scan')" title="Scan a QR to hand over an order">Hand-off</button>
@@ -1209,9 +1220,16 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
             <option value="overdue">Overdue</option>
             <option value="nomeas">No measurements yet</option>
             <option value="hasmeas">With measurements — ready to cut</option>
+            <option value="endorsed">Endorsed for cutting</option>
+            <option value="notendorsed">Not yet endorsed for cutting</option>
+            <option value="endorsed">Endorsed for cutting</option>
+            <option value="notendorsed">Not yet endorsed for cutting</option>
             <option value="needs">Missing customer details</option>
           </select></div>
-        <div class="field"><label for="fText">Name or order no.</label><input type="text" id="fText" oninput="renderSummary()" placeholder="Optional"></div>
+        <div class="field"><label for="fText">Name or order no.</label>
+          <input type="text" id="fText" oninput="renderSummary()" placeholder="Type, then Add to tag list"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addPickFromBox('summary');}">
+          <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="addPickFromBox('summary')">+ Add order to tag list</button></div>
       </div>
       <div class="btn-row">
         <button class="btn btn-primary btn-sm" onclick="printPicker('summary')">Print summary…</button>
@@ -1220,6 +1238,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
         <button class="btn btn-ghost btn-sm" onclick="exportFiltered()">Export to CSV</button>
         <button class="btn btn-ghost btn-sm" onclick="resetFilters()">Clear filters</button>
       </div>
+      <div id="fPicks" hidden></div>
     </div>
     <div id="sumContent"></div>
   </section>
@@ -1456,6 +1475,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
         <button class="btn btn-ghost btn-sm" onclick="printLabelsRoll('report')">Tags on roll</button>
         <button class="btn btn-ghost btn-sm" onclick="exportDayCSV()">Export CSV</button>
       </div>
+      <div id="rPicks" hidden></div>
       <div class="row c2">
         <div class="field"><label for="rOrderNo">Only this order number</label>
           <input type="text" id="rOrderNo" inputmode="numeric" autocomplete="off"
@@ -1765,7 +1785,7 @@ var KEY = 'belles_order_book_v1';
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B29';
+var APP_BUILD = 'B30';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -4295,6 +4315,8 @@ function reportRows(){
       if(status === 'collected' && !o.isReceived) return false;
       if(status === 'nomeas'    && hasMeas) return false;
       if(status === 'hasmeas'   && !hasMeas) return false;
+      if(status === 'endorsed'    && !isEndorsed(o)) return false;
+      if(status === 'notendorsed' &&  isEndorsed(o)) return false;
     }
     return true;
   }).sort(function(a,b){
@@ -4829,11 +4851,93 @@ function reconcileAllTickets(){
   return changed;
 }
 
+/* ---------- tag pick list ----------
+   Lets you gather orders one at a time — type an order number, add it, type
+   another — and print tags for the whole batch, instead of being limited to
+   whatever a single filter happens to catch. When the list is empty the tag
+   buttons fall back to the current filter, so the old behaviour still works. */
+var PRINT_PICKS = [];
+
+function pickedOrders(){
+  var byId = {};
+  (DB.orders || []).forEach(function(o){ byId[o.id] = o; });
+  return PRINT_PICKS.map(function(id){ return byId[id]; }).filter(Boolean);
+}
+
+function addPickFromBox(source){
+  var box = (source === 'report') ? $('rText') : $('fText');
+  var q = box ? String(box.value || '').trim().toLowerCase() : '';
+  if(!q){ toast('Type a name or order number first'); return; }
+  var hits = (DB.orders || []).filter(function(o){
+    return String(o.orderId || '').toLowerCase().indexOf(q) > -1 ||
+           String((o.lastName || '') + ' ' + (o.firstName || '')).toLowerCase().indexOf(q) > -1;
+  });
+  if(!hits.length){ toast('Nothing matches "' + q + '"'); return; }
+  var added = 0;
+  hits.forEach(function(o){
+    if(PRINT_PICKS.indexOf(o.id) === -1){ PRINT_PICKS.push(o.id); added++; }
+  });
+  if(box){ box.value = ''; }
+  renderPicks();
+  if(source === 'report') renderReport(); else renderSummary();
+  toast(added ? 'Added ' + added + ' garment(s) — ' + PRINT_PICKS.length + ' on the list'
+              : 'Already on the list');
+}
+
+function removePick(id){
+  var i = PRINT_PICKS.indexOf(id);
+  if(i > -1) PRINT_PICKS.splice(i, 1);
+  renderPicks();
+}
+function clearPicks(){ PRINT_PICKS = []; renderPicks(); toast('List cleared'); }
+
+function renderPicks(){
+  ['fPicks','rPicks'].forEach(function(boxId){
+    var el = $(boxId);
+    if(!el) return;
+    var list = pickedOrders();
+    if(!list.length){ el.innerHTML = ''; el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = '<div class="pickbar"><b>' + list.length + ' on the tag list</b>' +
+      list.map(function(o){
+        return '<span class="pickchip">' + esc(o.orderId) +
+          (o.lastName ? ' · ' + esc(o.lastName) : '') +
+          '<i onclick="removePick(\'' + o.id + '\')">&times;</i></span>';
+      }).join('') +
+      '<button class="btn btn-ghost btn-sm" onclick="clearPicks()">Clear list</button></div>';
+  });
+}
+
 /* "Needs details" belongs to the order: a companion garment is not itself
    incomplete if a sibling on the same ticket carries the customer. */
 function orderNeedsDetails(o){
   if(!o.ticketId) return !!o.needsDetails && !o.lastName;
   return !ticketLines(o.ticketId).some(function(x){ return x.lastName; });
+}
+
+/* ---------- endorsed for cutting ----------
+   A tag printed and handed to the workroom is a real event, and nothing else
+   records it: "no measurements yet" clears the moment a tape is entered, and
+   "missing details" clears when the name is filled, so neither tells you what
+   you have already sent for cutting. This flag is set only when you say the
+   tags went out, and never clears itself. */
+function isEndorsed(o){ return !!(o && o.cutEndorsedAt); }
+
+function endorseForCutting(list, on){
+  var at = stamp(), who = currentUser() || '', n = 0;
+  (list || []).forEach(function(o){
+    if(on && !o.cutEndorsedAt){
+      o.cutEndorsedAt = at; o.cutEndorsedBy = who;
+      logEvent(o, 'Endorsed for cutting' + (who ? ' by ' + who : '') + '.', true);
+      o.updatedAt = at; n++;
+    } else if(!on && o.cutEndorsedAt){
+      delete o.cutEndorsedAt; delete o.cutEndorsedBy;
+      logEvent(o, 'Cutting endorsement removed.', true);
+      o.updatedAt = at; n++;
+    }
+  });
+  if(n){ save(); queueSync(); }
+  return n;
 }
 /* Paid state belongs to the ORDER, not to one garment on it. */
 function orderPaidText(o){
@@ -5513,7 +5617,11 @@ function printQRTest(){
    from Summary and from Reports, so "everything with no measurements yet" can
    go straight to the workroom as a stack of labels. */
 function labelBatch(source){
-  var list = (source === 'report') ? reportRows() : filteredOrders();
+  // The gathered list wins when it has anything on it; otherwise fall back to
+  // whatever the screen's filters currently show.
+  var picked = pickedOrders();
+  var list = picked.length ? picked
+           : ((source === 'report') ? reportRows() : filteredOrders());
   var out = [], seen = {};
   list.forEach(function(o){
     if(seen[o.id]) return;
@@ -5542,8 +5650,14 @@ function a4LabelHTML(o){
   var n = parseInt(o.set || 1, 10);
   var meta = [o.companySchool, o.department].filter(Boolean).map(esc).join(' / ');
 
+  // Explicit two-column grid with a known row count, rather than column-count.
+  // column-count balances unpredictably: it left a tall ragged block that
+  // pushed the note past the bottom of the cell (clipped) while leaving white
+  // space beside it. With the rows stated outright the block's height is exact.
+  var tapeRows = Math.ceil(rows.length / 2) || 1;
   var tape = rows.length
-    ? '<div class="a4-tape">' + rows.map(function(m){
+    ? '<div class="a4-tape" style="grid-template-rows:repeat(' + tapeRows + ',auto)">' +
+      rows.map(function(m){
         return '<div class="a4-m"><b>' + m.label + '</b>' +
                '<span class="a4-v">(' + esc(src.meas[m.k]) + ')</span>' +
                '<span class="a4-fix"></span></div>';
@@ -5807,6 +5921,25 @@ function printLabelsA4(source){
   printNow();
   toast('Printing ' + b.ready.length + ' tag(s) on A4' +
         (b.skipped ? ' · ' + b.skipped + ' skipped, details missing' : ''));
+
+  // Printing tags is the moment work leaves the counter for the workroom, so
+  // this is where it is worth recording. Asked after the print dialog opens so
+  // a cancelled print can be answered honestly with No.
+  var pending = b.ready.filter(function(o){ return !isEndorsed(o); });
+  if(!pending.length) return;
+  setTimeout(function(){
+    ask({ title:'Mark these as endorsed for cutting?',
+          body: pending.length + ' garment(s) just printed. Marking them records '+
+                'that the tags went to the tailor, so you can tell later which '+
+                'ones you have already sent — even after their measurements or '+
+                'customer details get filled in.',
+          kind:'confirm', okLabel:'Yes, endorsed' }, function(yes){
+      if(!yes) return;
+      var n = endorseForCutting(pending, true);
+      renderSummary(); renderReport();
+      toast(n + ' garment(s) marked endorsed for cutting');
+    });
+  }, 400);
 }
 
 function printLabelsRoll(source){
@@ -7119,6 +7252,8 @@ function ticketStubHTML(g){
   // "No measurements yet" filter is obvious at a glance in the list.
   if(!hasOrderMeasurements(g.head))
     pills += '<span class="pill due">No tape</span>';
+  if(g.lines.some(isEndorsed))
+    pills += '<span class="pill cut">For cutting</span>';
   if(g.received)  pills += '<span class="pill rcv">Picked up</span>';
   else if(g.pieces > 0 && g.done >= g.pieces) pills += '<span class="pill wip">Ready</span>';
   else pills += '<span class="pill wip">'+g.done+'/'+g.pieces+' done</span>';
@@ -8122,6 +8257,9 @@ function filteredOrders(){
       case 'received': if(!o.isReceived) return false; break;
       case 'overdue':  if(o.isReceived || !o.dateDue || o.dateDue >= today0) return false; break;
       case 'needs':    if(!orderNeedsDetails(o)) return false; break;
+      // Survives details/measurements being filled in later, unlike the others.
+      case 'endorsed':    if(!isEndorsed(o)) return false; break;
+      case 'notendorsed': if(isEndorsed(o)) return false; break;
       // Garments nobody has taken a tape to yet — the workroom cannot cut these.
       // Measured is judged across the whole order, so a stock-size companion
       // does not show up as unmeasured when the customer has been taped.
@@ -9951,6 +10089,13 @@ fillForm(blankOrder());
 updateDueBadge(); updateQuickBadge();
 renderLines();
 initKeyboardHandling();
+// Stamp the build where it can always be read without digging: the login
+// screen and the header. Saves guessing which version is actually loaded.
+(function(){
+  var g = $('gateBuild'), h = $('hdrBuild');
+  if(g) g.textContent = 'Build ' + APP_BUILD;
+  if(h) h.textContent = APP_BUILD;
+})();
 renderGate();
 if(session) afterUnlock();
 </script>
