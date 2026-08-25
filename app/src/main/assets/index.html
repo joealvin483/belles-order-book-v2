@@ -1801,7 +1801,7 @@ var KEY = 'belles_order_book_v1';
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B35';
+var APP_BUILD = 'B36';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -7924,16 +7924,35 @@ function openOrder(id){
     '<p class="eyebrow">'+esc(o.orderId)+' · ordered '+nice(o.dateOrdered)+'</p>'+
     '<h3>'+esc(o.firstName)+' '+esc(o.lastName)+'</h3>'+
     '<p class="sub">'+esc(o.phoneNumber||'no phone')+(o.companySchool?' · '+esc(o.companySchool):'')+'</p>'+
-    '<div class="kv"><span class="k">Product</span><span class="v">'+esc(o.productName||'—')+(o.sizing?' · '+esc(o.sizing):'')+'</span></div>'+
+    // Everything the order form captures is shown back here. Fields that were
+    // never filled in read "—" rather than being hidden, so a gap is obvious
+    // instead of looking like the app simply does not track it.
+    '<div class="kv"><span class="k">Last name</span><span class="v">'+esc(o.lastName||'—')+'</span></div>'+
+    '<div class="kv"><span class="k">First name</span><span class="v">'+esc(o.firstName||'—')+'</span></div>'+
+    '<div class="kv"><span class="k">Phone</span><span class="v mono">'+esc(o.phoneNumber||'—')+'</span></div>'+
+    (o.emailAddress ? '<div class="kv"><span class="k">Email</span><span class="v">'+esc(o.emailAddress)+'</span></div>' : '')+
+    '<div class="kv"><span class="k">School / company</span><span class="v">'+esc(o.companySchool||'—')+'</span></div>'+
+    '<div class="kv"><span class="k">Department</span><span class="v">'+esc(o.department||'—')+'</span></div>'+
+    (o.gender ? '<div class="kv"><span class="k">Gender</span><span class="v">'+esc(o.gender)+'</span></div>' : '')+
+    '<div class="kv"><span class="k">Product</span><span class="v">'+esc(o.productName||'—')+'</span></div>'+
+    '<div class="kv"><span class="k">Sizing</span><span class="v">'+esc(o.sizing||'—')+'</span></div>'+
+    ((o.sizeUpper || o.sizeLower)
+      ? '<div class="kv"><span class="k">Upper / lower size</span><span class="v">'+
+        esc(o.sizeUpper||'—')+' / '+esc(o.sizeLower||'—')+'</span></div>' : '')+
+    (o.biggerSize ? '<div class="kv"><span class="k">Bigger size</span><span class="v">Yes</span></div>' : '')+
     (addonText(o) ? '<div class="kv"><span class="k">Add-ons</span><span class="v">'+esc(addonText(o))+'</span></div>' : '')+
-    '<div class="kv"><span class="k">Set</span><span class="v">'+total+' piece'+(total>1?'s':'')+' · '+done+' done</span></div>'+
+    '<div class="kv"><span class="k">Pieces in set</span><span class="v">'+total+' piece'+(total>1?'s':'')+' · '+done+' done</span></div>'+
+    (o.isReadyMade ? '<div class="kv"><span class="k">Ready made</span><span class="v">Yes — no fitting</span></div>' : '')+
+    '<div class="kv"><span class="k">Ordered</span><span class="v">'+nice(o.dateOrdered)+'</span></div>'+
     '<div class="kv"><span class="k">Due</span><span class="v">'+nice(o.dateDue)+'</span></div>'+
     (total>1 ? '<div class="kv"><span class="k">Price per piece</span><span class="v mono">'+peso(o.sellingPrice)+'</span></div>' : '')+
     '<div class="kv"><span class="k">'+(total>1?'Total order price':'Price')+'</span><span class="v mono">'+peso(o.orderTotal)+'</span></div>'+
     '<div class="kv"><span class="k">Paid</span><span class="v mono">'+peso(o.amountPaid)+'</span></div>'+
     '<div class="kv"><span class="k">Balance</span><span class="v mono" style="color:'+(num(o.balance)>0?'var(--bad)':'var(--ok)')+'">'+peso(o.balance)+'</span></div>'+
-    (o.block||o.page||o.number||o.coder ? '<div class="kv"><span class="k">Block / page / no. / coder</span><span class="v mono">'+esc(o.block||'-')+' / '+esc(o.page||'-')+' / '+esc(o.number||'-')+' / '+esc(o.coder||'-')+'</span></div>' : '')+
-    (o.notes ? '<div class="kv"><span class="k">Notes</span><span class="v" style="max-width:60%">'+esc(o.notes)+'</span></div>' : '')+
+    '<div class="kv"><span class="k">Block / page / no. / coder</span><span class="v mono">'+esc(o.block||'-')+' / '+esc(o.page||'-')+' / '+esc(o.number||'-')+' / '+esc(o.coder||'-')+'</span></div>'+
+    (isEndorsed(o) ? '<div class="kv"><span class="k">Endorsed for cutting</span><span class="v">'+
+        esc(stampNice(o.cutEndorsedAt))+(o.cutEndorsedBy?' · '+esc(o.cutEndorsedBy):'')+'</span></div>' : '')+
+    '<div class="kv"><span class="k">Notes</span><span class="v" style="max-width:60%">'+esc(o.notes||'—')+'</span></div>'+
   '</div>'+
 
   '<div class="card"><p class="eyebrow">Measurements</p><h3>Tape</h3>'+
