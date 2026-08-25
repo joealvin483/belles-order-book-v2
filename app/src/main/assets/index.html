@@ -1801,7 +1801,7 @@ var KEY = 'belles_order_book_v1';
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B34';
+var APP_BUILD = 'B35';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -4887,6 +4887,11 @@ function pickedOrders(){
   return PRINT_PICKS.map(function(id){ return byId[id]; }).filter(Boolean);
 }
 
+/* Held outside the dialog: the modal is emptied when it closes, so reading the
+   boxes in the callback would find nothing. */
+var TMP_PICK = {};
+function tmpPickSet(id, on){ TMP_PICK[id] = !!on; }
+
 function addPickFromBox(source){
   var box = (source === 'report') ? $('rText') : $('fText');
   var q = box ? String(box.value || '').trim().toLowerCase() : '';
@@ -4896,15 +4901,43 @@ function addPickFromBox(source){
            String((o.lastName || '') + ' ' + (o.firstName || '')).toLowerCase().indexOf(q) > -1;
   });
   if(!hits.length){ toast('Nothing matches "' + q + '"'); return; }
-  var added = 0;
-  hits.forEach(function(o){
-    if(PRINT_PICKS.indexOf(o.id) === -1){ PRINT_PICKS.push(o.id); added++; }
+
+  // Drop anything already on the list so the dialog only offers real choices.
+  var fresh = hits.filter(function(o){ return PRINT_PICKS.indexOf(o.id) === -1; });
+  if(!fresh.length){ toast('Already on the list'); return; }
+
+  var commit = function(chosen){
+    chosen.forEach(function(o){
+      if(PRINT_PICKS.indexOf(o.id) === -1) PRINT_PICKS.push(o.id);
+    });
+    if(box) box.value = '';
+    renderPicks();
+    if(source === 'report') renderReport(); else renderSummary();
+    toast('Added ' + chosen.length + ' garment(s) — ' + PRINT_PICKS.length + ' on the list');
+  };
+
+  // One match: nothing to decide. Several: a slip usually holds more than one
+  // garment and you rarely want tags for all of them, so ask which.
+  if(fresh.length === 1){ commit(fresh); return; }
+
+  TMP_PICK = {};
+  var body = '<p class="picknote">This matches ' + fresh.length +
+    ' garments. Tick the ones you want tags for.</p><div class="pickgrid">' +
+    fresh.map(function(o){
+      var what = esc(o.productName || 'Garment') + (o.sizing ? ' (' + esc(o.sizing) + ')' : '');
+      var who  = o.lastName ? ' · ' + esc(o.lastName) : '';
+      return '<label class="pickrow"><input type="checkbox"' +
+             ' onchange="tmpPickSet(\'' + o.id + '\',this.checked)">' +
+             '<span><b>' + esc(o.orderId) + '</b> — ' + what + who + '</span></label>';
+    }).join('') + '</div>';
+
+  ask({ title:'Which garment?', bodyHTML:body, wide:true,
+        kind:'confirm', okLabel:'Add to tag list' }, function(yes){
+    if(!yes) return;
+    var chosen = fresh.filter(function(o){ return TMP_PICK[o.id]; });
+    if(!chosen.length){ toast('Nothing ticked'); return; }
+    commit(chosen);
   });
-  if(box){ box.value = ''; }
-  renderPicks();
-  if(source === 'report') renderReport(); else renderSummary();
-  toast(added ? 'Added ' + added + ' garment(s) — ' + PRINT_PICKS.length + ' on the list'
-              : 'Already on the list');
 }
 
 function removePick(id){
