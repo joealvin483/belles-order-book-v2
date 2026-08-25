@@ -1801,7 +1801,7 @@ var KEY = 'belles_order_book_v1';
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B37';
+var APP_BUILD = 'B38';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -6121,7 +6121,12 @@ function qrLabelHTML(o){
    ticket may legitimately have none (e.g. a stock-size add-on), so when
    `allowNoMeas` is set we only insist on the customer details. */
 function labelBlockedReason(o, allowNoMeas){
-  if(o.needsDetails || !o.lastName) return 'this order still needs the customer details';
+  // Judged on what the order actually holds, not on the needsDetails flag.
+  // That flag is set when a quick slip is taken without a name and is meant to
+  // be cleared once the details are filled in, but it can survive — a merge
+  // between two tablets can carry the old value back, for instance — leaving an
+  // order that plainly has a name, phone and school still refusing to print.
+  if(orderNeedsDetails(o)) return 'this order still needs the customer details';
   if(!allowNoMeas && !hasOrderMeasurements(o)) return 'this order has no measurements yet';
   return '';
 }
@@ -10142,6 +10147,21 @@ function freshStartIfNeeded(){
   }catch(e){}
 }
 
+/* An order that has a customer name is not waiting on customer details. The
+   flag is set when a quick slip is taken blank and cleared when the details are
+   entered, but it can linger — a merge between two tablets can bring the old
+   value back — and then the order counts as incomplete forever: it refuses to
+   print a label, and it inflates the Quick badge. Clearing it here on load
+   settles those without needing anyone to re-edit the order. */
+function healNeedsDetails(){
+  var n = 0;
+  (DB.orders || []).forEach(function(o){
+    if(o.needsDetails && o.lastName){ delete o.needsDetails; n++; }
+  });
+  if(n) save();
+  return n;
+}
+
 /* ---------- the shop's people and sync settings ----------
    Seeded once so a fresh install (or a browser with empty storage) comes up
    ready to log in and sync, instead of asking for all of this again. Nothing
@@ -10310,6 +10330,7 @@ freshStartIfNeeded();
 load();
 seedStandardProducts();
 seedShopSetup();
+healNeedsDetails();
 applyPaper();
 window.addEventListener('online', function(){ queueSync(); });
 try{ history.replaceState({belles:'root'}, '', location.href); }catch(e){}
