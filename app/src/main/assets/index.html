@@ -1801,7 +1801,7 @@ var KEY = 'belles_order_book_v1';
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B36';
+var APP_BUILD = 'B37';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -10142,6 +10142,39 @@ function freshStartIfNeeded(){
   }catch(e){}
 }
 
+/* ---------- the shop's people and sync settings ----------
+   Seeded once so a fresh install (or a browser with empty storage) comes up
+   ready to log in and sync, instead of asking for all of this again. Nothing
+   here overwrites what is already saved: a user whose name already exists is
+   left alone, and the sync URL is only filled in when it is blank, so a PIN
+   changed in Setup or a different web app URL survives.
+
+   PINs are stored the same way the app always stores them — salted and hashed,
+   never in plain text — so these lines do not reveal the numbers. */
+function seedShopSetup(){
+  var seed = [
+    { name:'Joe', salt:'belles1seed', hash:'c71cbbe0-18c8b8ff', role:'owner' },
+    { name:'Don', salt:'belles2seed', hash:'7270ed4-5cac777f',  role:'staff' },
+    { name:'Ken', salt:'belles3seed', hash:'421c6a00-b6944118', role:'staff' }
+  ];
+  DB.users = DB.users || [];
+  var have = {};
+  DB.users.forEach(function(u){ have[u.name] = 1; });
+  seed.forEach(function(u){
+    if(!have[u.name]) DB.users.push({
+      name:u.name, salt:u.salt, hash:u.hash, role:u.role, createdAt:stamp()
+    });
+  });
+
+  DB.sync = DB.sync || {};
+  if(!DB.sync.url){
+    DB.sync.url = 'https://script.google.com/macros/s/AKfycbyQsXq-FW6JGGyNRLYacW4V2Iiflg_m3IzEkTuL1ndkf_k5qkXJ9raWZPf7ZVceCFOl/exec';
+  }
+  if(!DB.sync.secret) DB.sync.secret = 'change-me';
+  if(DB.sync.auto === undefined) DB.sync.auto = true;
+  save();
+}
+
 /* ---------- the shop's standard products ----------
    Added once, on first run. Anything already in Lists under the same name is
    left alone, so prices edited in the app are never overwritten. */
@@ -10276,6 +10309,7 @@ function seedStandardProducts(){
 freshStartIfNeeded();
 load();
 seedStandardProducts();
+seedShopSetup();
 applyPaper();
 window.addEventListener('online', function(){ queueSync(); });
 try{ history.replaceState({belles:'root'}, '', location.href); }catch(e){}
