@@ -100,6 +100,35 @@ header .hbtn+.hbtn{margin-left:7px}
 .pickhead:first-child{margin-top:0}
 .picknote{font-size:12.5px;color:var(--muted);margin:0 0 6px}
 /* Tag pick list chips */
+/* Checkbox filter dropdown: shows what is picked, opens a tick list on click. */
+.msel{position:relative}
+.mselbtn{
+  width:100%;min-height:52px;padding:12px 14px;text-align:left;
+  border:1px solid var(--line);border-radius:12px;background:var(--canvas);
+  font-family:var(--sans);font-size:16px;color:var(--ink);cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.mselbtn.on{border-color:var(--rose);background:#fff;font-weight:600}
+.mselbtn i{font-style:normal;font-size:11px;color:var(--muted);flex:none}
+.mselbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mselpanel{
+  position:absolute;z-index:60;left:0;right:0;top:calc(100% + 4px);
+  background:#fff;border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 10px 28px rgba(0,0,0,.16);padding:6px;max-height:300px;overflow-y:auto;
+}
+.mselrow{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;
+  cursor:pointer;font-size:14.5px;line-height:1.3}
+.mselrow:hover{background:var(--blush)}
+.mselrow input[type=checkbox]{
+  width:18px!important;height:18px!important;min-height:0!important;
+  margin:0!important;padding:0!important;flex:none;accent-color:var(--rose);
+}
+.mselrow span{flex:1;min-width:0}
+.mselnone{padding:10px;font-size:13px;color:var(--muted)}
+.mselclear{width:100%;margin-top:4px;padding:8px;border:none;background:none;
+  color:var(--rose);font-weight:600;font-size:13.5px;cursor:pointer;border-radius:8px}
+.mselclear:hover{background:var(--blush)}
+.field .hint{font-size:11.5px;color:var(--muted);margin:4px 0 0}
 .pickbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 0;
   padding:10px 12px;border:1px solid var(--rose);border-radius:12px;background:var(--blush)}
 .pickchip{display:inline-flex;align-items:center;gap:6px;background:#fff;
@@ -1205,27 +1234,14 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
         <div class="field"><label for="fTo">To</label><input type="date" id="fTo" onchange="markCustom()"></div>
       </div>
       <div class="row c2">
-        <div class="field"><label for="fSchool">School / company</label><select id="fSchool" onchange="renderSummary()"></select></div>
-        <div class="field"><label for="fProduct">Product</label><select id="fProduct" onchange="renderSummary()"></select></div>
+        <div class="field"><label>School / company</label>
+          <div class="msel" id="mselSchool"></div></div>
+        <div class="field"><label>Product</label>
+          <div class="msel" id="mselProduct"></div></div>
       </div>
       <div class="row c2">
-        <div class="field"><label for="fStatus">Status</label>
-          <select id="fStatus" onchange="renderSummary()">
-            <option value="all">Everything</option>
-            <option value="unpaid">With a balance</option>
-            <option value="paid">Fully paid</option>
-            <option value="wip">Not finished yet</option>
-            <option value="ready">Finished, not picked up</option>
-            <option value="received">Picked up</option>
-            <option value="overdue">Overdue</option>
-            <option value="nomeas">No measurements yet</option>
-            <option value="hasmeas">With measurements — ready to cut</option>
-            <option value="endorsed">Endorsed for cutting</option>
-            <option value="notendorsed">Not yet endorsed for cutting</option>
-            <option value="endorsed">Endorsed for cutting</option>
-            <option value="notendorsed">Not yet endorsed for cutting</option>
-            <option value="needs">Missing customer details</option>
-          </select></div>
+        <div class="field"><label>Status</label>
+          <div class="msel" id="mselStatus"></div></div>
         <div class="field"><label for="fText">Name or order no.</label>
           <input type="text" id="fText" oninput="renderSummary()" placeholder="Type, then Add to tag list"
                  onkeydown="if(event.key==='Enter'){event.preventDefault();addPickFromBox('summary');}">
@@ -1271,7 +1287,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
         <div class="field"><label for="qDate">Slip date</label>
           <input type="date" id="qDate" onchange="quickPreview()"></div>
       </div>
-      <div class="field"><label for="qPhone">Phone <span class="sub">optional</span></label>
+      <div class="field"><label for="qPhone">Phone <span class="sub">required</span></label>
         <input type="tel" id="qPhone" inputmode="numeric" maxlength="13" placeholder="09XXXXXXXXX" autocomplete="off"></div>
       <div class="field"><label for="qLastName">Last name <span class="sub">— optional</span></label>
         <input type="text" id="qLastName" placeholder="if they give it" autocomplete="off"
@@ -1785,7 +1801,7 @@ var KEY = 'belles_order_book_v1';
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B30';
+var APP_BUILD = 'B34';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -4060,7 +4076,14 @@ function saveQuickOrder(){
     return;
   }
 
-  var phone = $('qPhone').value.trim();   // taken when offered, never demanded
+  var phone = $('qPhone').value.trim();
+  if(!phone){
+    toast('The phone number is required');
+    $('qPhone').classList.add('missing');
+    $('qPhone').focus();
+    setTimeout(function(){ $('qPhone').classList.remove('missing'); }, 2200);
+    return;
+  }
 
   var all = qLines.slice();
   var cur = qCurrentLine();
@@ -8190,14 +8213,137 @@ function updateDueBadge(){
 /* ---------- summary and reports ----------
    One filter set drives the figures on screen, the CSV export and the printed
    report, so what you see is exactly what comes out. */
+/* ---------- checkbox filter dropdowns ----------
+   Closed by default showing what is picked; opens on click into a list of tick
+   boxes. Picking nothing means no restriction, so an untouched filter behaves
+   exactly as "all" did before. State lives here, not in the DOM, so redrawing
+   the list never loses a selection. */
+var FILT = { school: [], product: [], status: [] };
+
+var STATUS_OPTS = [
+  ['unpaid',      'With a balance'],
+  ['paid',        'Fully paid'],
+  ['wip',         'Not finished yet'],
+  ['ready',       'Finished, not picked up'],
+  ['received',    'Picked up'],
+  ['overdue',     'Overdue'],
+  ['nomeas',      'No measurements yet'],
+  ['hasmeas',     'With measurements — ready to cut'],
+  ['endorsed',    'Endorsed for cutting'],
+  ['notendorsed', 'Not yet endorsed for cutting'],
+  ['needs',       'Missing customer details']
+];
+
+function mselOptions(key){
+  if(key === 'status') return STATUS_OPTS;
+  var seen = {}, out = [];
+  (DB.orders || []).forEach(function(o){
+    var v = (key === 'school') ? o.companySchool : o.productName;
+    if(v && !seen[v]){ seen[v] = 1; out.push([v, v]); }
+  });
+  out.sort(function(a,b){ return a[0] < b[0] ? -1 : 1; });
+  return out;
+}
+
+function mselLabel(key){
+  var picked = FILT[key];
+  var allTxt = key === 'school' ? 'All schools'
+             : key === 'product' ? 'All products' : 'Everything';
+  if(!picked.length) return allTxt;
+  if(picked.length === 1){
+    var opt = mselOptions(key).filter(function(o){ return o[0] === picked[0]; })[0];
+    return opt ? opt[1] : picked[0];
+  }
+  return picked.length + ' selected';
+}
+
+function mselToggle(key, ev){
+  // Mark the event as coming from inside the widget. The re-render below
+  // replaces the very button that was clicked, so by the time the document
+  // click handler runs, e.target is detached and closest('.msel') finds
+  // nothing — which made it treat the click as "outside" and close the panel
+  // again immediately. Flagging the event itself survives the re-render.
+  if(ev) ev.__msel = 1;
+  var box = $('msel' + key.charAt(0).toUpperCase() + key.slice(1));
+  if(!box) return;
+  var open = box.getAttribute('data-open') === '1';
+  // only one panel open at a time
+  ['school','product','status'].forEach(function(k){
+    var b = $('msel' + k.charAt(0).toUpperCase() + k.slice(1));
+    if(b) b.setAttribute('data-open', '0');
+  });
+  box.setAttribute('data-open', open ? '0' : '1');
+  renderMsels();
+}
+
+function mselSet(key, value, on, ev){
+  if(ev) ev.__msel = 1;
+  var arr = FILT[key];
+  var i = arr.indexOf(value);
+  if(on && i === -1) arr.push(value);
+  if(!on && i > -1) arr.splice(i, 1);
+  renderMsels();
+  renderSummary();
+}
+function mselClear(key, ev){
+  if(ev) ev.__msel = 1;
+  FILT[key] = []; renderMsels(); renderSummary();
+}
+
+function renderMsels(){
+  ['school','product','status'].forEach(function(key){
+    var id = 'msel' + key.charAt(0).toUpperCase() + key.slice(1);
+    var box = $(id);
+    if(!box) return;
+    var open = box.getAttribute('data-open') === '1';
+    var opts = mselOptions(key);
+    var picked = FILT[key];
+    var h = '<button type="button" class="mselbtn'+(picked.length?' on':'')+'" '+
+            'onclick="mselToggle(\''+key+'\',event)">'+
+            '<span>'+esc(mselLabel(key))+'</span><i>'+(open?'▲':'▼')+'</i></button>';
+    if(open){
+      h += '<div class="mselpanel" onclick="event.__msel=1">'+
+        (opts.length ? opts.map(function(o){
+          var on = picked.indexOf(o[0]) > -1;
+          return '<label class="mselrow"><input type="checkbox"'+(on?' checked':'')+
+                 ' onclick="event.__msel=1"'+
+                 ' onchange="mselSet(\''+key+'\',\''+esc(o[0]).replace(/'/g,"\\\\'")+'\',this.checked,event)">'+
+                 '<span>'+esc(o[1])+'</span></label>';
+        }).join('') : '<div class="mselnone">Nothing to choose yet</div>')+
+        (picked.length ? '<button type="button" class="mselclear" onclick="mselClear(\''+key+'\',event)">Clear</button>' : '')+
+      '</div>';
+    }
+    box.innerHTML = h;
+  });
+}
+
+/* Clicking anywhere outside closes any open panel.
+
+   Registered on the CAPTURE phase deliberately. On the bubble phase this runs
+   after the widget has already re-rendered itself, so the clicked element is
+   detached from the document and closest('.msel') finds nothing — the handler
+   then decides the click was "outside" and shuts the panel the same instant it
+   opened, which is why the dropdowns appeared to do nothing at all. Capture
+   runs before any of that, while the target is still in place. */
+document.addEventListener('click', function(e){
+  var t = e.target;
+  if(t && t.closest && t.closest('.msel')) return;   // inside the widget
+  var any = false;
+  ['school','product','status'].forEach(function(k){
+    var b = $('msel' + k.charAt(0).toUpperCase() + k.slice(1));
+    if(b && b.getAttribute('data-open') === '1'){ b.setAttribute('data-open','0'); any = true; }
+  });
+  if(any) renderMsels();
+}, true);
+
 function filterDefs(){
   return {
     basis:   $('fBasis') ? $('fBasis').value : 'ordered',
     from:    $('fFrom')  ? $('fFrom').value  : '',
     to:      $('fTo')    ? $('fTo').value    : '',
-    school:  $('fSchool')? $('fSchool').value: '',
-    product: $('fProduct')?$('fProduct').value:'',
-    status:  $('fStatus')? $('fStatus').value: 'all',
+    schools:  FILT.school.slice(),
+    products: FILT.product.slice(),
+    statuses: FILT.status.slice(),
     text:   ($('fText')  ? $('fText').value  : '').toLowerCase().trim()
   };
 }
@@ -8216,27 +8362,15 @@ function markCustom(){ if($('fQuick')) $('fQuick').value = 'custom'; renderSumma
 function resetFilters(){
   ['fFrom','fTo','fText'].forEach(function(k){ if($(k)) $(k).value = ''; });
   if($('fQuick')) $('fQuick').value = 'all';
-  if($('fSchool')) $('fSchool').value = '';
-  if($('fProduct')) $('fProduct').value = '';
-  if($('fStatus')) $('fStatus').value = 'all';
+  FILT.school = []; FILT.product = []; FILT.status = [];
   if($('fBasis')) $('fBasis').value = 'ordered';
+  renderMsels();
   renderSummary();
 }
 function fillReportPickers(){
-  if(!$('fSchool')) return;
-  var keepS = $('fSchool').value, keepP = $('fProduct').value;
-  var schools = [], prods = [];
-  DB.orders.forEach(function(o){
-    if(o.companySchool && schools.indexOf(o.companySchool) === -1) schools.push(o.companySchool);
-    if(o.productName && prods.indexOf(o.productName) === -1) prods.push(o.productName);
-  });
-  schools.sort(); prods.sort();
-  $('fSchool').innerHTML = '<option value="">All schools</option>' + schools.map(function(x){
-    return '<option value="'+esc(x)+'">'+esc(x)+'</option>'; }).join('');
-  $('fProduct').innerHTML = '<option value="">All products</option>' + prods.map(function(x){
-    return '<option value="'+esc(x)+'">'+esc(x)+'</option>'; }).join('');
-  if(keepS) $('fSchool').value = keepS;
-  if(keepP) $('fProduct').value = keepP;
+  // The summary filters are checkbox dropdowns now and build their own lists
+  // from the order book, so there is nothing to populate here.
+  renderMsels();
 }
 function filteredOrders(){
   var f = filterDefs(), today0 = ymd(today());
@@ -8245,26 +8379,34 @@ function filteredOrders(){
     var d = (f.basis === 'due') ? (o.dateDue || '') : (o.dateOrdered || '');
     if(f.from && (!d || d < f.from)) return false;
     if(f.to   && (!d || d > f.to))   return false;
-    if(f.school  && o.companySchool !== f.school) return false;
-    if(f.product && o.productName   !== f.product) return false;
+    if(f.schools.length  && f.schools.indexOf(o.companySchool || '') === -1) return false;
+    if(f.products.length && f.products.indexOf(o.productName || '')  === -1) return false;
 
-    var done = parseInt(o.completedStatus||0,10), total = parseInt(o.set||1,10);
-    switch(f.status){
-      case 'unpaid':   if(num(o.balance) <= 0) return false; break;
-      case 'paid':     if(num(o.balance) >  0) return false; break;
-      case 'wip':      if(done >= total) return false; break;
-      case 'ready':    if(!(done >= total && !o.isReceived)) return false; break;
-      case 'received': if(!o.isReceived) return false; break;
-      case 'overdue':  if(o.isReceived || !o.dateDue || o.dateDue >= today0) return false; break;
-      case 'needs':    if(!orderNeedsDetails(o)) return false; break;
-      // Survives details/measurements being filled in later, unlike the others.
-      case 'endorsed':    if(!isEndorsed(o)) return false; break;
-      case 'notendorsed': if(isEndorsed(o)) return false; break;
-      // Garments nobody has taken a tape to yet — the workroom cannot cut these.
-      // Measured is judged across the whole order, so a stock-size companion
-      // does not show up as unmeasured when the customer has been taped.
-      case 'nomeas':   if(measured[o.ticketId || o.id]) return false; break;
-      case 'hasmeas':  if(!measured[o.ticketId || o.id]) return false; break;
+    // Several statuses can be picked at once; an order qualifies if it matches
+    // ANY of them, so "no measurements" plus "not yet endorsed" shows both sets
+    // rather than the impossible overlap of the two.
+    if(f.statuses.length){
+      var done = parseInt(o.completedStatus||0,10), total = parseInt(o.set||1,10);
+      var ok = f.statuses.some(function(st){
+        switch(st){
+          case 'unpaid':   return num(o.balance) > 0;
+          case 'paid':     return num(o.balance) <= 0;
+          case 'wip':      return done < total;
+          case 'ready':    return done >= total && !o.isReceived;
+          case 'received': return !!o.isReceived;
+          case 'overdue':  return !o.isReceived && o.dateDue && o.dateDue < today0;
+          case 'needs':    return orderNeedsDetails(o);
+          // Survives details/measurements being filled in later, unlike the others.
+          case 'endorsed':    return isEndorsed(o);
+          case 'notendorsed': return !isEndorsed(o);
+          // Measured is judged across the whole order, so a stock-size companion
+          // does not show up as unmeasured when the customer has been taped.
+          case 'nomeas':   return !measured[o.ticketId || o.id];
+          case 'hasmeas':  return !!measured[o.ticketId || o.id];
+        }
+        return true;
+      });
+      if(!ok) return false;
     }
     if(f.text){
       var hay = [o.orderId, o.lastName, o.firstName, o.phoneNumber].join(' ').toLowerCase();
@@ -8282,9 +8424,15 @@ function filterCaption(){
   bits.push(f.basis === 'due' ? 'by date due' : 'by date ordered');
   if(f.from || f.to) bits.push((f.from ? nice(f.from) : 'the beginning') + ' to ' + (f.to ? nice(f.to) : 'today'));
   else bits.push('all dates');
-  if(f.school)  bits.push(f.school);
-  if(f.product) bits.push(f.product);
-  if(f.status !== 'all') bits.push($('fStatus').options[$('fStatus').selectedIndex].text.toLowerCase());
+  if(f.schools.length)  bits.push(f.schools.join(' + '));
+  if(f.products.length) bits.push(f.products.join(' + '));
+  if(f.statuses.length){
+    var names = f.statuses.map(function(v){
+      var o = STATUS_OPTS.filter(function(x){ return x[0] === v; })[0];
+      return (o ? o[1] : v).toLowerCase();
+    });
+    bits.push(names.join(' + '));
+  }
   if(f.text)    bits.push('matching "' + f.text + '"');
   return bits.join(' · ');
 }
@@ -10089,6 +10237,7 @@ fillForm(blankOrder());
 updateDueBadge(); updateQuickBadge();
 renderLines();
 initKeyboardHandling();
+renderMsels();
 // Stamp the build where it can always be read without digging: the login
 // screen and the header. Saves guessing which version is actually loaded.
 (function(){
