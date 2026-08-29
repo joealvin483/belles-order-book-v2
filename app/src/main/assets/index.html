@@ -137,6 +137,19 @@ header .hbtn+.hbtn{margin-left:7px}
 .gatebuild{margin-top:14px;text-align:center;font-size:11px;letter-spacing:.09em;
   text-transform:uppercase;color:var(--muted)}
 .pill.cut{background:#E8F0FE;color:#1A4FA0;border-color:#B8CEF0}
+.pill.rev{background:#E7F5EC;color:#1C6B3A;border-color:#B6DFC5}
+/* Tick box on each card: mark an order checked without opening it, which is
+   what makes working down a list of hundreds practical. */
+.stub{position:relative}
+.stub.isrev{background:#F4FBF6}
+.revtick{
+  position:absolute;top:10px;right:10px;z-index:2;
+  width:30px;height:30px;border-radius:9px;cursor:pointer;
+  border:1.5px solid var(--line);background:#fff;
+  font-size:15px;line-height:1;color:#1C6B3A;font-weight:700;
+}
+.revtick:hover{border-color:var(--rose)}
+.revtick.on{background:#DFF3E6;border-color:#1C6B3A}
 .pickgrid{display:flex;flex-direction:column;gap:1px}
 .pickgrid.cols{display:grid;grid-template-columns:1fr 1fr;gap:1px 8px}
 .pickrow{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:9px;
@@ -1247,6 +1260,23 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
                  onkeydown="if(event.key==='Enter'){event.preventDefault();addPickFromBox('summary');}">
           <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="addPickFromBox('summary')">+ Add order to tag list</button></div>
       </div>
+      <div class="row c2">
+        <div class="field"><label for="fReview">Audit review</label>
+          <select id="fReview" onchange="renderSummary()">
+            <option value="all">All orders</option>
+            <option value="no">Not reviewed yet</option>
+            <option value="yes">Reviewed</option>
+          </select></div>
+        <div class="field"><label for="fSort">Sort by</label>
+          <select id="fSort" onchange="renderSummary()">
+            <option value="date-desc">Date ordered — newest first</option>
+            <option value="date-asc">Date ordered — oldest first</option>
+            <option value="name">Last name — A to Z</option>
+            <option value="school">School, then last name</option>
+            <option value="orderno">Order number</option>
+            <option value="due">Due date — soonest first</option>
+          </select></div>
+      </div>
       <div class="btn-row">
         <button class="btn btn-primary btn-sm" onclick="printPicker('summary')">Print summary…</button>
         <button class="btn btn-primary btn-sm" onclick="printLabelsA4('summary')">Print A4 tags</button>
@@ -1801,7 +1831,7 @@ var KEY = 'belles_order_book_v1';
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B38';
+var APP_BUILD = 'B39';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -4979,6 +5009,75 @@ function orderNeedsDetails(o){
    tags went out, and never clears itself. */
 function isEndorsed(o){ return !!(o && o.cutEndorsedAt); }
 
+/* ---------- audit review ----------
+   A separate mark from everything else: it records that a person has looked at
+   this order and confirmed the name, the garments and the money are right. It
+   is deliberately independent of the work statuses, so filling in a detail or
+   finishing a garment never clears it. */
+/* Sorts the grouped list in place. Works on groups rather than raw garments so
+   one customer's slip always stays together. */
+function sortGroups(groups){
+  var how = $('fSort') ? $('fSort').value : 'date-desc';
+  var txt = function(v){ return String(v || '').toLowerCase(); };
+  var nameOf = function(g){ return txt(g.head.lastName) + ' ' + txt(g.head.firstName); };
+  // Blank dates sort last, so a missing due date does not jump to the top of a
+  // "soonest first" list.
+  var dateOf = function(v, last){ return v ? String(v) : (last ? '9999' : '0000'); };
+  groups.sort(function(a,b){
+    switch(how){
+      case 'date-asc':  return dateOf(a.dateOrdered,1) < dateOf(b.dateOrdered,1) ? -1 : 1;
+      case 'name':      return nameOf(a) < nameOf(b) ? -1 : nameOf(a) > nameOf(b) ? 1 : 0;
+      case 'school':
+        var sa = txt(a.head.companySchool), sb = txt(b.head.companySchool);
+        if(sa !== sb) return sa < sb ? -1 : 1;
+        return nameOf(a) < nameOf(b) ? -1 : 1;
+      case 'orderno':   return txt(a.orderNo) < txt(b.orderNo) ? -1 : 1;
+      case 'due':       return dateOf(a.dateDue,1) < dateOf(b.dateDue,1) ? -1 : 1;
+      default:          return dateOf(a.dateOrdered,0) > dateOf(b.dateOrdered,0) ? -1 : 1;
+    }
+  });
+  return groups;
+}
+
+function isReviewed(o){ return !!(o && o.reviewedAt); }
+
+function toggleReviewed(id, ev){
+  if(ev && ev.stopPropagation) ev.stopPropagation();
+  var o = DB.orders.filter(function(x){ return x.id === id; })[0];
+  if(!o) return;
+  if(o.reviewedAt){
+    delete o.reviewedAt; delete o.reviewedBy;
+    logEvent(o, 'Review mark removed.', true);
+  } else {
+    o.reviewedAt = stamp(); o.reviewedBy = currentUser() || '';
+    logEvent(o, 'Checked and marked reviewed' + (o.reviewedBy ? ' by ' + o.reviewedBy : '') + '.', true);
+  }
+  o.updatedAt = stamp();
+  save(); queueSync();
+  renderSummary();
+  if($('findResults') && $('findResults').querySelector('.detail')) openOrder(id);
+  toast(o.reviewedAt ? 'Marked reviewed' : 'Review mark removed');
+}
+
+/* Marks a whole ticket at once — auditing is usually done per customer slip
+   rather than per garment. */
+function reviewTicket(id){
+  var o = DB.orders.filter(function(x){ return x.id === id; })[0];
+  if(!o) return;
+  var ls = o.ticketId ? ticketLines(o.ticketId) : [o];
+  var on = !ls.every(isReviewed);
+  var at = stamp(), who = currentUser() || '';
+  ls.forEach(function(x){
+    if(on){ x.reviewedAt = at; x.reviewedBy = who; }
+    else { delete x.reviewedAt; delete x.reviewedBy; }
+    x.updatedAt = at;
+    logEvent(x, on ? 'Checked and marked reviewed' + (who ? ' by ' + who : '') + '.'
+                   : 'Review mark removed.', true);
+  });
+  save(); queueSync(); renderSummary(); openOrder(id);
+  toast(on ? 'Order marked reviewed' : 'Review mark removed');
+}
+
 function endorseForCutting(list, on){
   var at = stamp(), who = currentUser() || '', n = 0;
   (list || []).forEach(function(o){
@@ -7315,6 +7414,8 @@ function ticketStubHTML(g){
     pills += '<span class="pill due">No tape</span>';
   if(g.lines.some(isEndorsed))
     pills += '<span class="pill cut">For cutting</span>';
+  if(g.lines.every(isReviewed))
+    pills += '<span class="pill rev">✓ Reviewed</span>';
   if(g.received)  pills += '<span class="pill rcv">Picked up</span>';
   else if(g.pieces > 0 && g.done >= g.pieces) pills += '<span class="pill wip">Ready</span>';
   else pills += '<span class="pill wip">'+g.done+'/'+g.pieces+' done</span>';
@@ -7327,7 +7428,10 @@ function ticketStubHTML(g){
   var firstN = String(g.head.firstName||'').trim();
   var who = last ? (last + (firstN ? ', ' + firstN : '')) : firstN;
 
-  return '<div class="stub" onclick="openOrder(\''+g.head.id+'\')">'+
+  var revOn = g.lines.every(isReviewed);
+  return '<div class="stub'+(revOn?' isrev':'')+'" onclick="openOrder(\''+g.head.id+'\')">'+
+    '<button type="button" class="revtick'+(revOn?' on':'')+'" title="Mark reviewed" '+
+      'onclick="event.stopPropagation();reviewTicket(\''+g.head.id+'\')">'+(revOn?'✓':'')+'</button>'+
     '<div class="tab"><div class="no">'+esc(g.orderNo)+'</div><div class="dt">'+esc(tag)+'</div></div>'+
     '<div class="body">'+
       '<div class="nm">'+(who ? esc(who) : '<span style="opacity:.55">Name to follow</span>')+'</div>'+
@@ -7907,6 +8011,17 @@ function openOrder(id){
          : done>0 ? done+' of '+total+' finished'
          : 'Not started')+'</span>'+
     '</div>'+
+    '<hr class="rule">'+
+    '<label>Audit</label>'+
+    '<div class="donerow">'+
+      '<button class="btn btn-sm '+(isReviewed(o)?'btn-primary':'btn-ghost')+'"'+
+        ' onclick="reviewTicket(\''+o.id+'\')">'+
+        (isReviewed(o) ? '✓ Reviewed' : 'Mark reviewed')+'</button>'+
+      '<span class="donestate">'+
+        (isReviewed(o)
+          ? 'Checked '+esc(stampNice(o.reviewedAt))+(o.reviewedBy?' by '+esc(o.reviewedBy):'')
+          : 'Not checked yet')+'</span>'+
+    '</div>'+
     '<div class="check'+(done?'':' off')+'" style="margin-top:6px"><input type="checkbox" id="d_recv" '+(o.isReceived?'checked':'')+(done?'':' disabled')+' onchange="quickReceive(\''+o.id+'\')"><label for="d_recv">Picked up</label></div>'+
     ((o.lineCount>1 ? tt.balance : num(o.balance))>0 ?
       '<hr class="rule"><label for="d_pay">Add payment ₱'+(o.lineCount>1?' (whole order · '+peso(tt.balance)+' left)':'')+'</label>'+
@@ -8401,6 +8516,8 @@ function filterDefs(){
     schools:  FILT.school.slice(),
     products: FILT.product.slice(),
     statuses: FILT.status.slice(),
+    review: $('fReview') ? $('fReview').value : 'all',
+    sort:   $('fSort')   ? $('fSort').value   : 'date-desc',
     text:   ($('fText')  ? $('fText').value  : '').toLowerCase().trim()
   };
 }
@@ -8438,6 +8555,11 @@ function filteredOrders(){
     if(f.to   && (!d || d > f.to))   return false;
     if(f.schools.length  && f.schools.indexOf(o.companySchool || '') === -1) return false;
     if(f.products.length && f.products.indexOf(o.productName || '')  === -1) return false;
+
+    // Kept apart from the work statuses on purpose: an audit pass cuts across
+    // them, so you can ask for "not reviewed" while also filtering by school.
+    if(f.review === 'yes' && !isReviewed(o)) return false;
+    if(f.review === 'no'  &&  isReviewed(o)) return false;
 
     // Several statuses can be picked at once; an order qualifies if it matches
     // ANY of them, so "no measurements" plus "not yet endorsed" shows both sets
@@ -8588,6 +8710,7 @@ function renderSummary(){
   var tickets = {}; list.forEach(function(o){ tickets[o.ticketId || o.id] = 1; });
 
   var groups = ticketGroups(list, false);
+  sortGroups(groups);
   var rows = groups.slice(0, 300).map(function(g){
     return '<tr onclick="openOrder(\''+g.head.id+'\')" style="cursor:pointer">'+
       '<td>'+esc(g.orderNo)+'</td>'+
