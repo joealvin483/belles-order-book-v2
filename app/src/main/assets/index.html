@@ -155,6 +155,10 @@ header .hbtn+.hbtn{margin-left:7px}
 .pickrow{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:9px;
   cursor:pointer;font-size:14px;line-height:1.3;color:var(--ink)}
 .pickrow:hover{background:var(--blush)}
+.pickrow input[type=radio]{
+  width:18px!important;height:18px!important;min-height:0!important;flex:none;
+  margin:0!important;padding:0!important;accent-color:var(--rose);
+}
 .pickrow input[type=checkbox]{
   width:18px!important;height:18px!important;min-height:0!important;flex:none;
   margin:0!important;padding:0!important;accent-color:var(--rose);
@@ -1831,7 +1835,7 @@ var KEY = 'belles_order_book_v1';
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B40';
+var APP_BUILD = 'B42';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -1846,9 +1850,103 @@ var DB = {
 };
 var storageOK = true;
 
+/* ---------- storage engine ----------
+   The app keeps all its data in the in-memory DB object and reads it
+   synchronously everywhere, so the persistence underneath has to preserve that:
+   nothing in the app is rewritten to "await" a save. IndexedDB holds the real
+   copy — its quota is hundreds of MB rather than the ~5MB of localStorage, which
+   is what the order book outgrew. Each save writes the whole DB as one record;
+   with a few hundred orders that is a small write and IndexedDB handles it off
+   the main thread, so typing never blocks on it.
+
+   localStorage is kept as a mirror only while it still fits, purely so an older
+   build opened by accident can still see recent data; once IndexedDB is the
+   store, it is the source of truth on load. */
+var IDB_NAME = 'belles_order_book', IDB_STORE = 'kv', IDB_KEY = 'db';
+var idb = null, idbReady = false;
+
+function idbOpen(){
+  return new Promise(function(resolve){
+    try{
+      var req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = function(){
+        var d = req.result;
+        if(!d.objectStoreNames.contains(IDB_STORE)) d.createObjectStore(IDB_STORE);
+      };
+      req.onsuccess = function(){ idb = req.result; idbReady = true; resolve(true); };
+      req.onerror   = function(){ idbReady = false; resolve(false); };
+    }catch(e){ resolve(false); }
+  });
+}
+
+function idbGet(key){
+  return new Promise(function(resolve){
+    if(!idb) return resolve(null);
+    try{
+      var tx = idb.transaction(IDB_STORE, 'readonly');
+      var rq = tx.objectStore(IDB_STORE).get(key);
+      rq.onsuccess = function(){ resolve(rq.result != null ? rq.result : null); };
+      rq.onerror   = function(){ resolve(null); };
+    }catch(e){ resolve(null); }
+  });
+}
+
+function idbPut(key, val){
+  return new Promise(function(resolve){
+    if(!idb) return resolve(false);
+    try{
+      var tx = idb.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(val, key);
+      tx.oncomplete = function(){ resolve(true); };
+      tx.onerror    = function(){ resolve(false); };
+    }catch(e){ resolve(false); }
+  });
+}
+
+/* Runs once before the app boots. Opens IndexedDB and, the first time on a
+   device that has only ever used localStorage, copies that data across so the
+   switch is invisible — the user opens the new version and their orders are
+   already there. */
+function storageInit(){
+  return idbOpen().then(function(ok){
+    if(!ok) return;                       // IndexedDB unavailable: stay on localStorage
+    return idbGet(IDB_KEY).then(function(fromIdb){
+      if(fromIdb != null) return;         // already migrated; load() will read it
+      var raw = null;
+      try{ raw = localStorage.getItem(KEY); }catch(e){}
+      if(raw) return idbPut(IDB_KEY, raw);  // one-time copy from the old store
+    });
+  });
+}
+
+/* Reads the stored JSON string, IndexedDB first. Synchronous by design: load()
+   below expects a value in hand, so storageInit() has already primed this. */
+var _storeSnapshot = null;
+function storageRead(){
+  if(_storeSnapshot != null) return _storeSnapshot;
+  try{ return localStorage.getItem(KEY); }catch(e){ return null; }
+}
+
+/* Writes the JSON string to IndexedDB (the real store) and mirrors to
+   localStorage while it still fits. IndexedDB is async, so the write is fired
+   and not awaited — the in-memory DB is already updated, and a failed mirror
+   never blocks the app. */
+function storageWrite(str){
+  var idbOkNow = false;
+  if(idbReady){ idbPut(IDB_KEY, str); idbOkNow = true; }
+  try{
+    localStorage.setItem(KEY, str);       // mirror for older builds; may overflow
+  }catch(e){
+    // localStorage full is fine now — IndexedDB is the real store. Only a
+    // problem if IndexedDB is also unavailable.
+    if(!idbOkNow) throw e;
+  }
+  return true;
+}
+
 function load(){
   try{
-    var raw = localStorage.getItem(KEY);
+    var raw = storageRead();
     if(raw){ DB = Object.assign(DB, JSON.parse(raw)); }
     // orders saved before per-piece pricing existed: the old price WAS the total
     DB.orders.forEach(function(o){
@@ -1888,8 +1986,6 @@ function load(){
     // after opening the app has nothing to be compared against and slips by
     // unnoticed — which is exactly the edit somebody is most likely to make.
     lastListSnapshot = listSnapshot();
-    localStorage.setItem(KEY + '_probe','1');
-    localStorage.removeItem(KEY + '_probe');
   }catch(e){
     storageOK = false;
     var w = document.getElementById('storeWarn');
@@ -2088,7 +2184,7 @@ function save(){
   if(!storageOK){ markSaved('failed'); return false; }
   markSaved('writing');
   try{
-    localStorage.setItem(KEY, JSON.stringify(DB));
+    storageWrite(JSON.stringify(DB));
     markSaved('saved');
     if($('storageMeter')) renderStorage();
     checkStorageWarning();
@@ -2123,7 +2219,14 @@ function emergencySave(){
 /* Warn well before the ceiling, not at it. */
 function checkStorageWarning(){
   var w = $('storeWarn'); if(!w) return;
-  var pct = (storageBytes() / STORAGE_LIMIT) * 100;
+  // On IndexedDB there is so much headroom the percentage warning is noise;
+  // only warn when the app is on the old localStorage store and genuinely near
+  // its 5MB ceiling.
+  if(idbReady){
+    if(w.dataset.kind === 'space'){ w.style.display = 'none'; w.dataset.kind = ''; }
+    return;
+  }
+  var pct = (storageBytes() / storageLimit()) * 100;
   if(pct < 80){
     if(w.dataset.kind === 'space'){ w.style.display = 'none'; w.dataset.kind = ''; }
     return;
@@ -9268,6 +9371,49 @@ function cpGroup(gi){
     (school || 'Any customer') + (dept ? ' › ' + dept : ' › whole school'));
 }
 /* Copy one product on its own. */
+/* ---------- size code audit ----------
+   Sizes are held per product PER DEPARTMENT, and the order form reads the entry
+   matching the order's own school and department. So updating SCRUB SUIT for
+   one department leaves every other department still offering the old codes,
+   and an old order opened for editing shows those old codes — which looks like
+   the app ignoring the new list when it is really reading a stale entry.
+   This lists every variant of a product's size set so the odd one out is
+   obvious, and can copy one department's sizes onto the rest. */
+function sizeAudit(name){
+  var rows = DB.products.filter(function(p){ return p.name === name; });
+  if(!rows.length){ toast('No catalogue entry for ' + name); return; }
+
+  var body = '<p class="picknote">Each line is one department\'s copy of ' +
+    esc(name) + '. If they differ, that is why an old order shows old sizes.</p>' +
+    '<div class="pickgrid">' + rows.map(function(p, i){
+      var sizes = (p.sizes || []).map(function(x){ return String(x.size); });
+      return '<label class="pickrow"><input type="radio" name="szsrc"' +
+        ' onchange="TMP_SZ=' + i + '">' +
+        '<span><b>' + esc(p.school || 'any school') + ' / ' +
+        esc(p.department || 'any dept') + '</b><br>' +
+        (sizes.length ? esc(sizes.join(', ')) : '<i>no sizes — uses the standard list</i>') +
+        '</span></label>';
+    }).join('') + '</div>' +
+    '<p class="picknote">Pick the one that is correct, then apply it to all the others.</p>';
+
+  TMP_SZ = -1;
+  ask({ title:'Sizes for ' + name, bodyHTML:body, wide:true,
+        kind:'confirm', okLabel:'Copy to all departments' }, function(yes){
+    if(!yes) return;
+    if(TMP_SZ < 0){ toast('Pick which one is correct first'); return; }
+    var src = rows[TMP_SZ];
+    var n = 0;
+    rows.forEach(function(p){
+      if(p === src) return;
+      p.sizes = JSON.parse(JSON.stringify(src.sizes || []));
+      n++;
+    });
+    save(); renderProducts(); refreshProductChoices();
+    toast('Sizes copied to ' + n + ' other department(s)');
+  });
+}
+var TMP_SZ = -1;
+
 function cpOne(i){
   var p = DB.products[i];
   if(!p) return;
@@ -9533,6 +9679,7 @@ function prodRow(p, i){
       '</div>'+
       '<button class="btn btn-ghost btn-sm" style="margin-top:12px;width:100%" onclick="cpOne('+i+')">Copy '+esc(p.name)+' to other departments…</button>'+
       '<button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%" onclick="renameProduct('+i+')">Rename '+esc(p.name)+'…</button>'+
+      '<button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%" onclick="sizeAudit(\''+esc(p.name).replace(/'/g,"\\'")+'\')">Check sizes across departments…</button>'+
       '<button class="btn btn-danger btn-sm" style="margin-top:8px" onclick="removeProduct('+i+')">Remove '+esc(p.name)+'</button>'+
     '</div></div>';
 }
@@ -9911,26 +10058,41 @@ function mergeBackup(d){
   return stats;
 }
 
-/* ---------- storage reporting ---------- */
-var STORAGE_LIMIT = 5 * 1024 * 1024;   // browsers give roughly 5 MB per site
+/* ---------- storage reporting ----------
+   With IndexedDB the practical ceiling is hundreds of MB, not the ~5MB of
+   localStorage. The meter is shown against a conservative 200MB so the bar
+   stays meaningful, but in practice the order book will never approach it. When
+   IndexedDB is not available the app has fallen back to localStorage and the
+   old 5MB cap is the real one, so the figure follows whichever store is live. */
+var STORAGE_LIMIT_IDB = 200 * 1024 * 1024;
+var STORAGE_LIMIT_LS  = 5 * 1024 * 1024;
+function storageLimit(){ return idbReady ? STORAGE_LIMIT_IDB : STORAGE_LIMIT_LS; }
 
 function storageBytes(){
-  var s = '';
-  try{ s = localStorage.getItem(KEY) || ''; }catch(e){ return 0; }
-  return s.length * 2;                 // stored as UTF-16
+  try{ return JSON.stringify(DB).length * 2; }catch(e){ return 0; }  // UTF-16
 }
 function renderStorage(){
   if(!$('storageMeter')) return;
-  var bytes = storageBytes(), pct = Math.min(100, (bytes / STORAGE_LIMIT) * 100);
+  var limit = storageLimit();
+  var bytes = storageBytes(), pct = Math.min(100, (bytes / limit) * 100);
   var kb = (bytes/1024);
-  var per = DB.orders.length ? bytes / DB.orders.length : 1400;
-  var room = Math.max(0, Math.floor((STORAGE_LIMIT - bytes) / per));
   $('storageMeter').style.width = Math.max(1.5, pct) + '%';
-  $('storageInfo').textContent =
-    DB.orders.length + ' order' + (DB.orders.length===1?'':'s') + ' · ' +
-    (kb < 1024 ? kb.toFixed(0) + ' KB' : (kb/1024).toFixed(1) + ' MB') +
-    ' of about 5 MB used (' + pct.toFixed(pct<1?1:0) + '%). Room for roughly ' +
-    room.toLocaleString('en-PH') + ' more orders. The 5 MB cap is set by the browser, not the tablet.';
+  if(idbReady){
+    $('storageInfo').textContent =
+      DB.orders.length + ' order' + (DB.orders.length===1?'':'s') + ' · ' +
+      (kb < 1024 ? kb.toFixed(0) + ' KB' : (kb/1024).toFixed(1) + ' MB') +
+      ' stored on this device. Plenty of room — the order book is kept in the '+
+      'browser database, which holds far more than the old 5 MB limit.';
+  } else {
+    var per = DB.orders.length ? bytes / DB.orders.length : 1400;
+    var room = Math.max(0, Math.floor((limit - bytes) / per));
+    $('storageInfo').textContent =
+      DB.orders.length + ' order' + (DB.orders.length===1?'':'s') + ' · ' +
+      (kb < 1024 ? kb.toFixed(0) + ' KB' : (kb/1024).toFixed(1) + ' MB') +
+      ' of about 5 MB used (' + pct.toFixed(pct<1?1:0) + '%). Room for roughly ' +
+      room.toLocaleString('en-PH') + ' more orders. This device is using the '+
+      'older 5 MB store — open the app from its web address for the larger one.';
+  }
 }
 
 /* ---------- automatic backup ---------- */
@@ -10266,6 +10428,7 @@ function freshStartIfNeeded(){
   try{
     if(localStorage.getItem(KEY + '_fresh') === FRESH_START) return;
     localStorage.removeItem(KEY);
+    if(idbReady) idbPut(IDB_KEY, null);
     localStorage.setItem(KEY + '_fresh', FRESH_START);
   }catch(e){}
 }
@@ -10449,34 +10612,56 @@ function seedStandardProducts(){
   if(touched) save();
   normaliseCatalogSizes();
 }
-freshStartIfNeeded();
-load();
-seedStandardProducts();
-seedShopSetup();
-healNeedsDetails();
-applyPaper();
-window.addEventListener('online', function(){ queueSync(); });
-try{ history.replaceState({belles:'root'}, '', location.href); }catch(e){}
-window.addEventListener('beforeunload', function(e){
-  if(session && formHasUnsavedWork()){ e.preventDefault(); e.returnValue = ''; return ''; }
+/* The boot sequence below reads persisted data synchronously (load reads the
+   string storageRead returns). IndexedDB is async, so we open it first, pull the
+   stored record into a snapshot the synchronous read can hand back, then boot
+   exactly as before. If IndexedDB is unavailable the snapshot stays null and
+   everything falls back to localStorage — the app still runs, just with the old
+   limit. A short timeout guarantees the app starts even if the database hangs. */
+function boot(){
+  freshStartIfNeeded();
+  load();
+  seedStandardProducts();
+  seedShopSetup();
+  healNeedsDetails();
+  applyPaper();
+  window.addEventListener('online', function(){ queueSync(); });
+  try{ history.replaceState({belles:'root'}, '', location.href); }catch(e){}
+  window.addEventListener('beforeunload', function(e){
+    if(session && formHasUnsavedWork()){ e.preventDefault(); e.returnValue = ''; return ''; }
+  });
+  buildTape();
+  refreshDropdowns();
+  fillSizes('');
+  fillForm(blankOrder());
+  updateDueBadge(); updateQuickBadge();
+  renderLines();
+  initKeyboardHandling();
+  renderMsels();
+  // Stamp the build where it can always be read without digging: the login
+  // screen and the header. Saves guessing which version is actually loaded.
+  (function(){
+    var g = $('gateBuild'), h = $('hdrBuild');
+    if(g) g.textContent = 'Build ' + APP_BUILD;
+    if(h) h.textContent = APP_BUILD;
+  })();
+  renderGate();
+  if(session) afterUnlock();
+}
+
+var _booted = false;
+function bootOnce(){ if(_booted) return; _booted = true; boot(); }
+
+storageInit().then(function(){
+  return idbGet(IDB_KEY);
+}).then(function(str){
+  if(str != null) _storeSnapshot = str;   // IndexedDB is the source of truth
+  bootOnce();
+}).catch(function(){
+  bootOnce();                              // any failure: boot on localStorage
 });
-buildTape();
-refreshDropdowns();
-fillSizes('');
-fillForm(blankOrder());
-updateDueBadge(); updateQuickBadge();
-renderLines();
-initKeyboardHandling();
-renderMsels();
-// Stamp the build where it can always be read without digging: the login
-// screen and the header. Saves guessing which version is actually loaded.
-(function(){
-  var g = $('gateBuild'), h = $('hdrBuild');
-  if(g) g.textContent = 'Build ' + APP_BUILD;
-  if(h) h.textContent = APP_BUILD;
-})();
-renderGate();
-if(session) afterUnlock();
+// Safety net: never let a stuck database stop the app from opening.
+setTimeout(bootOnce, 3000);
 </script>
 </body>
 </html>
