@@ -232,6 +232,26 @@ input:required:invalid:not(:placeholder-shown){border-color:#E7B7B2}
 }
 .m label{font-size:11.5px;font-weight:600;letter-spacing:.07em;color:var(--rose);
   text-transform:uppercase;margin:4px 0 2px}
+.mrow{display:flex;align-items:center;gap:4px}
+/* Gender tape: two labelled columns (Blouse/Polo on the left, Pants on the
+   right), each measurement on its own line, blanks included. */
+/* Gender tape on screen: two columns side by side, each stacking its own
+   measurements under a section header (Blouse/Polo left, Pants right). */
+.mcols{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;align-items:start}
+.mcol{display:block;min-width:0}
+.mcol .m{margin-bottom:10px}
+.mcolhead{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--rose);padding:2px 0 6px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.mrow input{flex:1;min-width:0}
+/* On-screen dash: a small tap target beside the field for the iOS numpad,
+   which has no minus key. Kept out of the tab order so keyboard entry is
+   unaffected. */
+.dashbtn{
+  flex:none;width:26px;height:26px;border-radius:7px;cursor:pointer;
+  border:1px solid var(--line);background:#fff;color:var(--rose);
+  font-size:17px;font-weight:700;line-height:1;padding:0;
+}
+.dashbtn:active{background:var(--blush)}
 .m input{
   border:none;border-radius:0;padding:2px 0;min-height:30px;font-size:16px;font-weight:600;
   background:transparent;text-align:left;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;
@@ -845,7 +865,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
 /* ---------- POS printing ----------
    Prints a narrow thermal-style slip, not the screen. Everything else on the
    page is hidden and only #printArea goes to the printer. */
-.pos,.qlabels,.report{display:none}
+.pos,.qlabels,.report,.sizeslips,.slipsheet{display:none}
 @media print{
   html,body{background:#fff!important;margin:0!important;padding:0!important}
   body>*{display:none!important}
@@ -912,6 +932,8 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
 
   /* QR pick-up labels */
   body>.qlabels{display:block!important;color:#000;font-family:var(--posmono)}
+  body>.sizeslips{display:block!important;color:#000}
+  body>.slipsheet{display:grid!important;color:#000}
   /* One column, top to bottom. Nothing floats beside anything else, so no line
      ever gets squeezed into a narrow gutter and shredded across three rows. */
   .qlabel{display:block;border:1px solid #000;border-radius:6px;
@@ -944,43 +966,53 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   .a4grid .a4cell{border:.4pt dashed #999;padding:5mm;height:88mm;
     box-sizing:border-box;overflow:hidden;break-inside:avoid;page-break-inside:avoid;
     font-family:var(--sans);color:#000;position:relative}
-  .a4lab{position:relative;height:100%;text-align:left;line-height:1.25}
+  .a4lab{position:relative;height:100%;text-align:left;line-height:1.25;
+    display:flex;flex-direction:column}
   .a4lab .a4-qr{position:absolute;top:0;right:0;width:16mm;height:16mm}
   .a4lab .a4-qr .qrimg{width:16mm;height:16mm;max-width:16mm}
   .a4lab .a4-no{font-family:var(--posmono);font-weight:400;font-size:10pt;letter-spacing:.04em}
   .a4lab .a4-part{font-family:var(--sans);font-weight:400;font-size:8pt;margin-left:6mm}
   /* The name is the biggest thing on the label; it wraps rather than overflow,
      and stops short of the QR so the two never collide. */
-  .a4lab .a4-name{font-size:15.5pt;font-weight:600;line-height:1.12;margin:2.5mm 0 0;
+  .a4lab .a4-name{font-size:14pt;font-weight:600;line-height:1.1;margin:2mm 0 0;
     color:#111;text-transform:uppercase;padding-right:18mm;word-break:break-word}
-  .a4lab .a4-meta{font-size:9.5pt;margin-top:1.5mm;font-weight:400;color:#333}
-  .a4lab .a4-item{font-size:11.5pt;font-weight:500;margin-top:2mm;color:#111;
-    border-bottom:.4pt solid #999;padding-bottom:2mm;
+  .a4lab .a4-meta{font-size:9pt;margin-top:1.2mm;font-weight:400;color:#333}
+  .a4lab .a4-item{font-size:11pt;font-weight:500;margin-top:1.5mm;color:#111;
+    border-bottom:.4pt solid #999;padding-bottom:1.5mm;
     display:flex;align-items:baseline;gap:3mm}
   .a4lab .a4-prod{flex:none;font-weight:600;padding-right:3mm}
-  /* Tailor sits on the product line, to the right — the workroom signs here
-     instead of a separate row at the bottom that got clipped once the tape and
-     notes filled the cell. Checked was dropped to save the line; the tailor's
-     own name is the sign-off the shop actually uses. */
-  .a4lab .a4-tailor{flex:1;display:flex;align-items:baseline;gap:1.5mm;
-    font-size:9.5pt;font-weight:400;color:#333;white-space:nowrap}
-  .a4lab .a4-tailor i{flex:1;border-bottom:.3pt solid #888;height:.9em}
-  /* Bigger, but line spacing tuned so eleven measurements plus a note still fit
-     the cell. Typical garments (7-8 tapes) fill it nicely; the fullest ones
-     land just inside the bottom. */
-  .a4lab .a4-tape{margin-top:2.5mm;display:grid;grid-auto-flow:column;
-    grid-template-columns:1fr 1fr;column-gap:5mm;flex:none}
-  .a4lab .a4-m{display:flex;align-items:baseline;gap:1.5mm;font-size:10.5pt;
-    line-height:1.85;break-inside:avoid}
-  .a4lab .a4-m b{width:7.5mm;flex:none;font-weight:600;color:#111}
-  .a4lab .a4-v{font-family:var(--posmono);font-size:8pt;width:22.5mm;
+  /* Back garter sits beside the garment name so the cutter sees it at a glance. */
+  .a4lab .a4-garter{flex:1;font-size:9pt;font-weight:600;color:#1A4FA0;
+    white-space:nowrap;text-align:right}
+  /* Two labelled tape columns, matching the paper form; blanks show a rule.
+     display:grid with two tracks lays the left set beside the right set; each
+     column is its own flow so the headers sit above their own measurements. */
+  .a4lab .a4-tape2{margin-top:1.5mm;display:grid;grid-template-columns:1fr 1fr;
+    column-gap:6mm;align-items:start;flex:none}
+  .a4lab .a4-tcol{min-width:0}
+  .a4lab .a4-thead{font-size:8pt;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;color:#B33A5B;border-bottom:.4pt solid #ccc;
+    padding-bottom:.6mm;margin-bottom:1.2mm}
+  .a4lab .a4-m{display:flex;align-items:baseline;gap:1.2mm;font-size:8.5pt;
+    line-height:1.42;break-inside:avoid}
+  .a4lab .a4-m b{width:6.5mm;flex:none;font-weight:600;color:#111}
+  .a4lab .a4-v{font-family:var(--posmono);font-size:7.5pt;width:15mm;
     white-space:nowrap;flex:none;font-weight:400;color:#222}
-  .a4lab .a4-fix{flex:1;border-bottom:.3pt dotted #888;height:.9em}
+  .a4lab .a4-fix{flex:1;border-bottom:.3pt dotted #888;height:.85em;min-width:5mm}
+  .a4lab .a4-fix.filled{border-bottom:none}
   .a4lab .a4-none{font-style:italic;font-size:10.5pt;margin-top:2.5mm}
-  /* Notes get their own line and can wrap. */
-  .a4lab .a4-note{font-size:10pt;margin-top:2.5mm;color:#222;line-height:1.3;
+  /* Foot: note on the left, short Tailor initials on the right, on one line. */
+  /* Foot sits on the bottom line of the cell: note on the left, tailor on the
+     right. margin-top:auto pushes it down however short the tape is, so the
+     signature line is always in the same place on every tag. */
+  .a4lab .a4-foot{display:flex;align-items:baseline;gap:4mm;margin-top:auto;
+    padding-top:2mm}
+  .a4lab .a4-note{flex:1;min-width:0;font-size:9.5pt;color:#222;line-height:1.25;
     word-break:break-word}
   .a4lab .a4-note b{font-weight:600}
+  .a4lab .a4-tailor{flex:none;display:flex;align-items:baseline;gap:1.2mm;
+    font-size:9pt;font-weight:400;color:#333;white-space:nowrap}
+  .a4lab .a4-tailor i{display:inline-block;width:14mm;border-bottom:.3pt solid #888;height:.9em}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -1078,7 +1110,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
         <div class="row c2">
           <div class="field"><label for="department">Department</label><select id="department"></select></div>
           <div class="field"><label for="gender">Gender</label>
-            <select id="gender"><option value=""></option><option>M</option><option>F</option></select></div>
+            <select id="gender" onchange="onGenderChange()"><option value=""></option><option>M</option><option>F</option></select></div>
         </div>
       </div>
 
@@ -1118,6 +1150,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
 
         <div class="check">
           <input type="checkbox" id="isReadyMade"><label for="isReadyMade">Ready made (no fitting)</label>
+          <input type="checkbox" id="backGarter"><label for="backGarter">Back garter</label>
         </div>
       </div>
       </div><div class="col">
@@ -1284,6 +1317,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
       <div class="btn-row">
         <button class="btn btn-primary btn-sm" onclick="printPicker('summary')">Print summary…</button>
         <button class="btn btn-primary btn-sm" onclick="printLabelsA4('summary')">Print A4 tags</button>
+        <button class="btn btn-ghost btn-sm" onclick="printSampleTemplate()">Print sample template</button>
         <button class="btn btn-ghost btn-sm" onclick="printLabelsRoll('summary')">Tags on roll</button>
         <button class="btn btn-ghost btn-sm" onclick="exportFiltered()">Export to CSV</button>
         <button class="btn btn-ghost btn-sm" onclick="resetFilters()">Clear filters</button>
@@ -1700,6 +1734,15 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
     </div>
 
     <div class="card">
+      <p class="eyebrow">Measurements</p>
+      <h3>Pants waist and hips</h3>
+      <p class="sub">Orders taken before the pants rows existed have those boxes empty.
+        This copies the blouse waist and hips across to fill them. It only fills blanks —
+        an order with a real pants reading is left as it is, and you can edit any of them after.</p>
+      <button class="btn btn-ghost btn-sm" onclick="backfillPantsMeasures()">Fill blank pants figures…</button>
+    </div>
+
+    <div class="card">
       <p class="eyebrow">Staff</p>
       <h3>Who can use this tablet</h3>
       <p class="sub">Each person gets a PIN. Their name is stamped on every change they make.</p>
@@ -1819,7 +1862,7 @@ var MEAS = [
   {k:'b',   label:'B',  hint:'bust',        seg:2},
   {k:'f',   label:'F',  hint:'figure',      seg:3},
   {k:'ah',  label:'AH', hint:'armhole',     seg:3},
-  {k:'fb',  label:'FB', hint:'full back',   seg:2},
+  {k:'fb',  label:'FB', hint:'front/back',  seg:2},
   {k:'w',   label:'W',  hint:'waist',       seg:1},
   {k:'h',   label:'H',  hint:'hips',        seg:2},
   {k:'c',   label:'C',  hint:'crotch',      seg:1},
@@ -1827,15 +1870,60 @@ var MEAS = [
   {k:'l',   label:'L',  hint:'legs',        seg:2},
   {k:'k',   label:'K',  hint:'knee',        seg:1},
   {k:'an',  label:'An', hint:'ankle',       seg:1},
-  {k:'wr',  label:'Wr', hint:'wrist',       seg:2}
+  {k:'wr',  label:'Wr', hint:'wrist',       seg:2},
+  // Pants waist and hips are separate readings from the blouse waist and hips,
+  // so they need their own keys or one overwrites the other when both are taken.
+  {k:'w2',  label:'W',  hint:'pants waist',  seg:1},
+  {k:'h2',  label:'H',  hint:'pants hips',   seg:2}
 ];
+
+/* ---------- measurements shown per gender ----------
+   The owner keeps two fixed tape sheets. Each has a left and a right column
+   under a section header, in a set order, and every line shows even when blank
+   so the sheet always looks the same. The right-column W/H are the PANTS
+   waist/hips (keys w2/h2), which are different readings from the blouse W/H on
+   the left. Anything without a gender falls back to the blouse-style full list
+   so nothing is lost on an older order. */
+var GENDER_MEAS = {
+  F: { leftHead:'Blouse', left:['s','b','f','ah','w','h','fb','n','an','wr'],
+       rightHead:'Pants', right:['w2','h2','l','k','c','fl'] },
+  M: { leftHead:'Polo',   left:['n','s','b','f','ah'],
+       rightHead:'Pants', right:['w2','h2','l','k','c','fl'] }
+};
+
+function measByKey(k){
+  for(var i=0;i<MEAS.length;i++){ if(MEAS[i].k === k) return MEAS[i]; }
+  return null;
+}
+
+/* Flat key list for an order's gender, left column then right, in order.
+   Falls back to the combined set when the gender is blank or unknown. */
+function genderMeasKeys(gender){
+  var c = genderMeasCols(gender);
+  return c.left.concat(c.right);
+}
+function genderMeasCols(gender){
+  var g = GENDER_MEAS[(gender || '').toUpperCase().charAt(0)];
+  if(g) return { leftHead:g.leftHead, left:g.left.slice(),
+                 rightHead:g.rightHead, right:g.right.slice() };
+  // No gender chosen yet — a brand new order, before the form is filled in.
+  // Still show two columns rather than one long list: the upper-body set on the
+  // left and the pants set on the right, so the layout does not lurch when the
+  // gender is finally picked.
+  return {
+    leftHead: 'Blouse / Polo',
+    left:  ['s','b','f','ah','w','h','fb','n','an','wr'],
+    rightHead: 'Pants',
+    right: ['w2','h2','l','k','c','fl']
+  };
+}
 
 var KEY = 'belles_order_book_v1';
 /* Printed small on every slip and shown in Setup. Without this there is no way
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B42';
+var APP_BUILD = 'B53';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -2440,15 +2528,135 @@ function insertDash(id){
 }
 
 function buildTape(){
-  $('tapeGrid').innerHTML = MEAS.map(function(m){
+  /* Inserts a dash at the cursor when the on-screen "–" button is tapped, for
+     iOS numpads that have no minus. Marks the field manual so the auto-grouping
+     stops reformatting a reading the user is dashing by hand. */
+  window.measDash = function(k){
+    var el = $('m_'+k);
+    if(!el) return;
+    var s = el.selectionStart, e = el.selectionEnd;
+    if(s == null){ s = e = el.value.length; }
+    el.value = el.value.slice(0, s) + '-' + el.value.slice(e);
+    el.__manualDash = true;
+    el.focus();
+    try{ el.setSelectionRange(s + 1, s + 1); }catch(_){}
+    if(typeof fitMeasure === 'function') fitMeasure(el);
+  };
+  var cols = genderMeasCols(currentGender());
+  var cellHTML = function(k){
+    var m = measByKey(k);
+    if(!m) return '';
     var ph = m.seg === 3 ? 'xx-xx-xx' : (m.seg === 2 ? 'xx-xx' : 'xx');
+    // Every measurement gets the dash button. Even a single-segment reading is
+    // sometimes written as a range, and on iOS the number pad has no minus key.
+    var dashBtn = '<button type="button" class="dashbtn" tabindex="-1" '+
+        'onclick="measDash(\''+m.k+'\')">–</button>';
     return '<div class="m"><label for="m_'+m.k+'">'+m.label+'</label>'+
-           '<input type="text" id="m_'+m.k+'" inputmode="decimal" placeholder="'+ph+'">'+
+           '<div class="mrow">'+
+             '<input type="text" id="m_'+m.k+'" inputmode="decimal" '+
+               'autocapitalize="off" autocorrect="off" spellcheck="false" '+
+               'placeholder="'+ph+'">'+
+             dashBtn+
+           '</div>'+
            '<div class="hint">'+m.hint+'</div></div>';
-  }).join('');
+  };
+  var colHTML = function(head, keys){
+    return '<div class="mcol">'+
+      (head ? '<div class="mcolhead">'+esc(head)+'</div>' : '<div class="mcolhead">&nbsp;</div>')+
+      keys.map(cellHTML).join('')+
+    '</div>';
+  };
+  // The tapeGrid container is normally a 3-column grid; the gender layout brings
+  // its own two columns, so switch the container to plain block flow or the
+  // whole thing gets squeezed into one third of the width.
+  var tg = $('tapeGrid');
+  tg.style.display = 'block';
+  tg.innerHTML =
+    '<div class="mcols">'+
+      colHTML(cols.leftHead, cols.left)+
+      colHTML(cols.rightHead, cols.right)+
+    '</div>';
 
-  MEAS.forEach(function(m){
+  // Only the measurements actually shown get their input handlers wired.
+  cols.left.concat(cols.right).forEach(function(k){
+    var m = measByKey(k); if(!m) return;
+    wireMeasInput(m);
+  });
+}
+
+/* The gender currently chosen on the order form, or blank. */
+function currentGender(){
+  var g = $('gender');
+  return g ? g.value : '';
+}
+
+/* Rebuild the tape when the gender changes, preserving any values already
+   typed for measurements that remain in the new list. */
+function onGenderChange(){
+  var keep = {};
+  MEAS.forEach(function(m){ var el = $('m_'+m.k); if(el) keep[m.k] = el.value; });
+  buildTape();
+  MEAS.forEach(function(m){ var el = $('m_'+m.k); if(el && keep[m.k] != null) el.value = keep[m.k]; });
+}
+
+/* One-off backfill for orders taken before the pants waist and hips had their
+   own boxes: copies the blouse waist and hips across where the pants ones are
+   still empty. Fills blanks only — an order that already has a real pants
+   reading is untouched — and asks first, showing how many it would change. */
+function backfillPantsMeasures(){
+  var todo = (DB.orders || []).filter(function(o){
+    if(!o.meas) return false;
+    var needW = String(o.meas.w || '').trim() && !String(o.meas.w2 || '').trim();
+    var needH = String(o.meas.h || '').trim() && !String(o.meas.h2 || '').trim();
+    return needW || needH;
+  });
+  if(!todo.length){ toast('Nothing to fill — every order already has its pants figures'); return; }
+
+  ask({ title:'Copy waist and hips to the pants rows?',
+        body: todo.length + ' order(s) have a blouse waist or hips but no pants figure. '+
+              'The blouse reading will be copied across so the pants rows are not blank. '+
+              'Orders that already have a pants reading are left alone. '+
+              'You can still edit any of them afterwards.',
+        kind:'confirm', okLabel:'Fill them in' }, function(yes){
+    if(!yes) return;
+    var at = stamp(), n = 0;
+    todo.forEach(function(o){
+      var did = [];
+      if(String(o.meas.w || '').trim() && !String(o.meas.w2 || '').trim()){
+        o.meas.w2 = o.meas.w; did.push('pants waist');
+      }
+      if(String(o.meas.h || '').trim() && !String(o.meas.h2 || '').trim()){
+        o.meas.h2 = o.meas.h; did.push('pants hips');
+      }
+      if(did.length){
+        o.updatedAt = at; n++;
+        logEvent(o, 'Filled ' + did.join(' and ') + ' from the blouse measurements.', true);
+      }
+    });
+    save(); queueSync();
+    toast(n + ' order(s) filled — sync to update the sheet');
+  });
+}
+
+/* The pants waist and hips are usually taken at the same place as the blouse
+   waist and hips, so typing one fills the other to save re-entering it. It only
+   ever fills a BLANK pants box — once a real pants reading is entered, or the
+   copied figure is typed over, it is left alone. */
+var PANTS_MIRROR = { w:'w2', h:'h2' };
+function mirrorToPants(key, value){
+  var target = PANTS_MIRROR[key];
+  if(!target) return;
+  var el = $('m_' + target);
+  if(!el) return;
+  if(String(el.value || '').trim() !== '') return;   // never overwrite
+  if(String(value || '').trim() === '') return;
+  el.value = value;
+  if(typeof fitMeasure === 'function') fitMeasure(el);
+}
+
+function wireMeasInput(m){
     var el = $('m_'+m.k);
+    if(!el) return;
     var prevLen = 0, manual = false;   // manual: the user typed their own dashes
 
     el.addEventListener('keydown', function(e){
@@ -2467,6 +2675,7 @@ function buildTape(){
          strips every dash the moment it is typed on the tablet, while a desktop
          keyboard works fine. */
       if(e && String(e.data || '').indexOf('-') > -1) manual = true;
+      if(el.__manualDash) manual = true;   // a dash from the on-screen button
       fitMeasure(el);
       var shrinking = el.value.length < prevLen;
       prevLen = el.value.length;
@@ -2486,6 +2695,7 @@ function buildTape(){
     el.addEventListener('focus', function(){
       prevLen = el.value.length;
       manual = el.value.indexOf('-') > -1;
+      el.__manualDash = el.value.indexOf('-') > -1;
     });
     el.addEventListener('blur', function(){
       el.value = manual ? formatMeasure(el.value, m.seg)
@@ -2493,8 +2703,8 @@ function buildTape(){
       prevLen = el.value.length;
       manual = el.value.indexOf('-') > -1;
       fitMeasure(el);
+      mirrorToPants(m.k, el.value);
     });
-  });
 }
 
 /* ---------- dropdown fill ---------- */
@@ -2981,6 +3191,7 @@ function readGarment(){
     block: $('block').value.trim(), page: $('page').value.trim(),
     number: $('number').value.trim(), coder: $('coder').value.trim(),
     isReadyMade: $('isReadyMade').checked,
+    backGarter: $('backGarter').checked,
     completedStatus: $('completedStatus').value,
     isReceived: $('isReceived').checked,
     meas: {}
@@ -3006,6 +3217,7 @@ function clearGarmentFields(){
   $('orderTotal').value = '';
   ['block','page','number','coder'].forEach(function(k){ $(k).value = ''; });
   $('isReadyMade').checked = false;
+  if($('backGarter')) $('backGarter').checked = false;
   MEAS.forEach(function(m){ $('m_'+m.k).value = ''; });
   fitAllMeasures();
   totalDirty = false;
@@ -5902,25 +6114,39 @@ function a4LabelHTML(o){
     var donor = ticketLines(o.ticketId).filter(hasMeasurements)[0];
     if(donor) src = donor;
   }
-  var rows = MEAS.filter(function(m){
-    return src.meas && String(src.meas[m.k] || '').trim() !== '';
-  });
   var n = parseInt(o.set || 1, 10);
   var meta = [o.companySchool, o.department].filter(Boolean).map(esc).join(' / ');
+  // Gender rides inline after the phone, matching the paper slip: 0917… / Female
+  var genderWord = o.gender === 'M' ? 'Male' : (o.gender === 'F' ? 'Female' : '');
+  var phoneGender = [o.phoneNumber ? esc(o.phoneNumber) : '',
+                     genderWord].filter(Boolean).join(' / ');
 
-  // Explicit two-column grid with a known row count, rather than column-count.
-  // column-count balances unpredictably: it left a tall ragged block that
-  // pushed the note past the bottom of the cell (clipped) while leaving white
-  // space beside it. With the rows stated outright the block's height is exact.
-  var tapeRows = Math.ceil(rows.length / 2) || 1;
-  var tape = rows.length
-    ? '<div class="a4-tape" style="grid-template-rows:repeat(' + tapeRows + ',auto)">' +
-      rows.map(function(m){
-        return '<div class="a4-m"><b>' + m.label + '</b>' +
-               '<span class="a4-v">(' + esc(src.meas[m.k]) + ')</span>' +
-               '<span class="a4-fix"></span></div>';
-      }).join('') + '</div>'
-    : '<div class="a4-none">No measurements taken yet</div>';
+  // Two gender columns, headers and all, every line shown even when blank so the
+  // tag matches the owner's paper form. A written reading prints its value with
+  // no rule; a blank one prints the ruled space for the tailor to fill in.
+  var cols = genderMeasCols(o.gender);
+  var tCell = function(k){
+    var m = measByKey(k); if(!m) return '';
+    var v = (src.meas && String(src.meas[m.k] || '').trim()) || '';
+    // A written reading fills the value slot; a blank one puts the rule in that
+    // same slot, so the rules begin exactly where the values begin and the whole
+    // column lines up down the tag.
+    return '<div class="a4-m"><b>' + m.label + '</b>' +
+           (v ? '<span class="a4-v">(' + esc(v) + ')</span>'
+              : '<span class="a4-fix"></span>') +
+           '</div>';
+  };
+  var tCol = function(head, keys){
+    return '<div class="a4-tcol">' +
+      '<div class="a4-thead">' + (head ? esc(head) : '&nbsp;') + '</div>' +
+      keys.map(tCell).join('') + '</div>';
+  };
+  var tape = '<div class="a4-tape2">' +
+    tCol(cols.leftHead, cols.left) + tCol(cols.rightHead, cols.right) + '</div>';
+
+  // Back garter always states the answer so the cutter is never left guessing.
+  var garter = '<span class="a4-garter">Back garter: ' +
+               (o.backGarter ? 'Yes' : 'No') + '</span>';
 
   return '<div class="a4lab">' +
     '<div class="a4-qr">' + orderQRImg(o, 16) + '</div>' +
@@ -5928,17 +6154,84 @@ function a4LabelHTML(o){
       (o.lineCount > 1 ? '<span class="a4-part">' + o.lineNo + ' of ' + o.lineCount + '</span>' : '') +
     '</div>' +
     '<div class="a4-name">' + esc(o.lastName ? o.lastName + ', ' + o.firstName : 'NAME MISSING') + '</div>' +
-    '<div class="a4-meta">' + meta + (o.phoneNumber ? '  ' + esc(o.phoneNumber) : '') + '</div>' +
+    '<div class="a4-meta">' + meta + (phoneGender ? '  ' + phoneGender : '') + '</div>' +
     '<div class="a4-item">' +
       '<span class="a4-prod">' + esc(o.productName || 'Garment') +
         (o.sizing ? ' (' + esc(o.sizing) + ')' : '') +
         (n > 1 ? ' - ' + n + ' pcs' : '') + '</span>' +
-      '<span class="a4-tailor">Tailor: <i></i></span>' +
+      garter +
     '</div>' +
     (addonText(o) ? '<div class="a4-meta">+ ' + esc(addonText(o)) + '</div>' : '') +
     (src !== o ? '<div class="a4-meta">tape from ' + esc(src.orderId) + '</div>' : '') +
     tape +
-    (o.notes ? '<div class="a4-note"><b>Note:</b> ' + esc(o.notes) + '</div>' : '') +
+    '<div class="a4-foot">' +
+      '<span class="a4-note">' + (o.notes ? '<b>Note:</b> ' + esc(o.notes) : '') + '</span>' +
+      '<span class="a4-tailor">Tailor: <i></i></span>' +
+    '</div>' +
+  '</div>';
+}
+
+/* Four blank sizing slips to an A4 sheet, each a compact version of the shop's
+   paper form: order no, date, name, phone, school/dept, gender boxes, the 1-4
+   items table, then the measurements. The measurement order follows the app's
+   own sequence (Blouse/Polo set, then the Pants set) rather than the old paper
+   ordering, so what the tailor writes matches what gets typed in. Generic — not
+   tagged Female or Male — since one form serves both. */
+function printSampleTemplate(){
+  var cell = slipCardHTML();
+  var cells = '';
+  for(var i=0;i<4;i++) cells += '<div class="slipcell">' + cell + '</div>';
+  setPrintStyle('slip4');
+  var area = $('printArea');
+  area.className = 'slipsheet';
+  area.innerHTML = cells;
+  printNow();
+  toast('Printing sizing slips (4 per sheet)');
+}
+
+function slipCardHTML(){
+  var cols = genderMeasCols('');          // generic: Blouse/Polo + Pants
+  var mRow = function(k){
+    var m = measByKey(k);
+    if(!m) return '<div class="sc-m">&nbsp;</div>';
+    return '<div class="sc-m"><span class="sc-lb">' + esc(m.hint) + '</span>' +
+           '<span class="sc-rule"></span></div>';
+  };
+  var rows = Math.max(cols.left.length, cols.right.length), body = '';
+  for(var i=0;i<rows;i++){
+    body += '<div class="sc-mpair">' +
+      (cols.left[i]  ? mRow(cols.left[i])  : '<div class="sc-m">&nbsp;</div>') +
+      (cols.right[i] ? mRow(cols.right[i]) : '<div class="sc-m">&nbsp;</div>') +
+    '</div>';
+  }
+  var itemRow = function(n){
+    return '<tr><td class="sc-n">' + n + '</td><td></td><td></td><td></td><td></td>' +
+           '<td class="sc-c"><span class="sc-box"></span></td></tr>';
+  };
+
+  return '<div class="slipcard">' +
+    '<div class="sc-head"><b>Belle\'s Dress Shop</b><span>SIZING SLIP</span></div>' +
+    '<div class="sc-r2">' +
+      '<div class="sc-f"><label>ORDER NO.</label><i></i></div>' +
+      '<div class="sc-f"><label>DATE</label><i></i></div>' +
+    '</div>' +
+    '<div class="sc-f w"><label>NAME</label><i></i></div>' +
+    '<div class="sc-r2">' +
+      '<div class="sc-f"><label>PHONE</label><i></i></div>' +
+      '<div class="sc-f"><label>SCHOOL / DEPT.</label><i></i></div>' +
+    '</div>' +
+    '<div class="sc-gen"><label>GENDER</label>' +
+      '<span class="sc-box"></span> F <span class="sc-box" style="margin-left:8px"></span> M' +
+    '</div>' +
+    '<table class="sc-items"><thead><tr>' +
+      '<th>#</th><th>ITEM</th><th>SET</th><th>SIZE</th><th>PRICE</th><th>LONG<br>SLEEVE</th>' +
+    '</tr></thead><tbody>' + itemRow(1)+itemRow(2)+itemRow(3)+itemRow(4) + '</tbody></table>' +
+    '<div class="sc-lbl">MEASUREMENTS</div>' +
+    '<div class="sc-meas">' + body + '</div>' +
+    '<div class="sc-r2 sc-sign">' +
+      '<div class="sc-f"><label>NOTES</label><i></i></div>' +
+      '<div class="sc-f"><label>MEASURED BY</label><i></i></div>' +
+    '</div>' +
   '</div>';
 }
 
@@ -7167,6 +7460,7 @@ function readForm(){
     number: $('number').value.trim(),
     coder: $('coder').value.trim(),
     isReadyMade: $('isReadyMade').checked,
+    backGarter: $('backGarter').checked,
     sellingPrice: num($('sellingPrice').value),
     orderTotal: pieces() > 1 ? num($('orderTotal').value) : num($('sellingPrice').value),
     dateDue: $('dateDue').value,
@@ -7202,6 +7496,7 @@ function fillForm(o){
   $('number').value = o.number||'';
   $('coder').value = o.coder || (o.id ? '' : currentUser());
   $('isReadyMade').checked = !!o.isReadyMade;
+  if($('backGarter')) $('backGarter').checked = !!o.backGarter;
   $('sellingPrice').value = o.sellingPrice!=null ? o.sellingPrice : '';
   $('paidTotal').value = num(o.amountPaid || 0);
   var savedTotal = (o.orderTotal!=null ? o.orderTotal : o.sellingPrice);
@@ -7877,6 +8172,77 @@ function setPrintStyle(kind){
         'box-sizing:border-box;overflow:hidden;break-inside:avoid}}';
     return;
   }
+  if(kind === 'slipA4'){
+    st.textContent = '@media print{@page{size:A4 portrait;margin:12mm}' +
+      'html,body{background:#fff!important}' +
+      '.sizeslip{page-break-after:always;font-family:var(--sans);color:#000;' +
+        'font-size:11pt;line-height:1.3}' +
+      '.sizeslip:last-child{page-break-after:auto}' +
+      '.sl-head{display:flex;justify-content:space-between;align-items:baseline;' +
+        'border-bottom:2px solid #000;padding-bottom:3px}' +
+      '.sl-head b{font-size:19pt;font-weight:800}' +
+      '.sl-head span{font-size:11pt;letter-spacing:.08em}' +
+      '.sl-row2{display:flex;gap:16px;margin-top:10px}' +
+      '.sl-f{flex:1;display:flex;align-items:baseline;gap:6px}' +
+      '.sl-f.wide{margin-top:10px}' +
+      '.sl-f label{font-weight:700;font-size:10pt;white-space:nowrap}' +
+      '.sl-f i{flex:1;border-bottom:1px solid #000;height:1.4em}' +
+      '.sl-gender{display:flex;align-items:center;gap:8px;margin-top:12px;font-weight:700}' +
+      '.sl-box{display:inline-block;width:13px;height:13px;border:1.5px solid #000;' +
+        'vertical-align:middle}' +
+      '.sl-box.on{background:#000}' +
+      '.sl-lbl{font-weight:800;letter-spacing:.05em;margin:14px 0 4px}' +
+      '.sl-sub{font-weight:400;font-size:9pt;letter-spacing:0;color:#444}' +
+      '.sl-items{width:100%;border-collapse:collapse;font-size:10pt}' +
+      '.sl-items th,.sl-items td{border:1px solid #000;padding:5px 6px;text-align:left}' +
+      '.sl-items th{font-size:8.5pt;text-align:center;font-weight:700}' +
+      '.sl-items .sl-n{text-align:center;width:6%}' +
+      '.sl-items td{height:26px}' +
+      '.sl-ls{text-align:center;width:12%}' +
+      '.sl-meas{margin-top:2px}' +
+      '.sl-mpair{display:flex;gap:24px}' +
+      '.sl-mrow{flex:1;display:flex;align-items:baseline;gap:6px;padding:5px 0}' +
+      '.sl-ml{font-weight:700;font-size:10pt;text-transform:capitalize;min-width:60px}' +
+      '.sl-mfill{flex:1;border-bottom:1px solid #000;height:1.3em}' +
+      '}';
+    return;
+  }
+  if(kind === 'slip4'){
+    // Four slips to a sheet: a 2x2 grid of quarter pages, each a compact copy of
+    // the paper sizing slip. Type is small but every line is writable by hand.
+    st.textContent = '@media print{@page{size:A4 portrait;margin:6mm}' +
+      '.slipsheet{display:grid!important;grid-template-columns:1fr 1fr;gap:0;width:auto}' +
+      '.slipcell{height:140mm;padding:5mm;box-sizing:border-box;overflow:hidden;' +
+        'border:.4pt dashed #999;break-inside:avoid}' +
+      '.slipcard{font-family:var(--sans);color:#000;font-size:7.5pt;line-height:1.25}' +
+      '.sc-head{display:flex;justify-content:space-between;align-items:baseline;' +
+        'border-bottom:1.2pt solid #000;padding-bottom:1mm}' +
+      '.sc-head b{font-size:11pt;font-weight:800}' +
+      '.sc-head span{font-size:6.5pt;letter-spacing:.06em}' +
+      '.sc-r2{display:flex;gap:5mm;margin-top:2mm}' +
+      '.sc-f{flex:1;display:flex;align-items:baseline;gap:1.5mm;min-width:0}' +
+      '.sc-f.w{margin-top:2mm}' +
+      '.sc-f label{font-weight:700;font-size:6.5pt;white-space:nowrap}' +
+      '.sc-f i{flex:1;border-bottom:.5pt solid #000;height:1.2em}' +
+      '.sc-gen{display:flex;align-items:center;gap:2mm;margin-top:2mm;' +
+        'font-weight:700;font-size:6.5pt}' +
+      '.sc-box{display:inline-block;width:8px;height:8px;border:.8pt solid #000}' +
+      '.sc-items{width:100%;border-collapse:collapse;font-size:6.5pt;margin-top:2mm}' +
+      '.sc-items th,.sc-items td{border:.5pt solid #000;padding:1mm}' +
+      '.sc-items th{font-size:5.5pt;text-align:center;font-weight:700}' +
+      '.sc-items td{height:4.2mm}' +
+      '.sc-n,.sc-c{text-align:center;width:7%}' +
+      '.sc-lbl{font-weight:800;font-size:7pt;letter-spacing:.04em;margin:2mm 0 .5mm;' +
+        'border-bottom:.5pt solid #000}' +
+      '.sc-mpair{display:flex;gap:5mm}' +
+      '.sc-m{flex:1;display:flex;align-items:baseline;gap:1.5mm;padding:.8mm 0;min-width:0}' +
+      '.sc-lb{font-weight:700;font-size:6.5pt;text-transform:capitalize;' +
+        'width:16mm;flex:none}' +
+      '.sc-rule{flex:1;border-bottom:.5pt solid #000;height:1.1em}' +
+      '.sc-sign{margin-top:2mm}' +
+      '}';
+    return;
+  }
   if(kind === 'labelA4'){
     /* Six to a sheet: two columns by three rows on A4 portrait. 8mm page
        margin leaves 194 x 281mm. Rows are 88mm, not the 93mm that just fits:
@@ -8045,8 +8411,23 @@ function openOrder(id){
     var donor = ticketLines(o.ticketId).filter(hasMeasurements)[0];
     if(donor){ measSrc = donor; measFrom = donor.orderId; }
   }
-  var measRows = MEAS.filter(function(m){ return measSrc.meas && measSrc.meas[m.k]; })
-    .map(function(m){ return '<div class="m"><label>'+m.label+'</label><input type="text" value="'+esc(measSrc.meas[m.k])+'" readonly><div class="hint">'+m.hint+'</div></div>'; }).join('');
+  // Laid out by the order's gender: the same two columns and headers as the
+  // paper tape sheet, every line shown even when blank so the card reads like
+  // the owner's form.
+  var gcols = genderMeasCols(measSrc.gender || o.gender);
+  var dCell = function(k){
+    var m = measByKey(k); if(!m) return '';
+    var v = (measSrc.meas && measSrc.meas[m.k]) || '';
+    return '<div class="m"><label>'+m.label+'</label>'+
+           '<input type="text" value="'+esc(v)+'" readonly>'+
+           '<div class="hint">'+m.hint+'</div></div>';
+  };
+  var dCol = function(head, keys){
+    return '<div class="mcol"><div class="mcolhead">'+(head?esc(head):'&nbsp;')+'</div>'+
+           keys.map(dCell).join('')+'</div>';
+  };
+  var measRows = '<div class="mcols">'+
+    dCol(gcols.leftHead, gcols.left)+dCol(gcols.rightHead, gcols.right)+'</div>';
 
   var payLog = (o.payments||[]).map(function(p, pi){
     var gc = isGCashMode(p.mode);
@@ -8186,7 +8567,7 @@ function openOrder(id){
     (measRows
       ? '<div class="tape'+(measFrom?' isborrowed':'')+'"><div class="tape-head"><b>'+esc(o.lastName)+'</b>'+
         '<span>'+esc(measSrc.orderId)+'</span></div>'+
-        '<div class="tape-grid">'+measRows+'</div></div>'
+        measRows+'</div>'
       : '<p class="sub" style="margin:0">No measurements recorded on this order.</p>')+
   '</div>'+
 
@@ -10459,7 +10840,7 @@ function healNeedsDetails(){
    never in plain text — so these lines do not reveal the numbers. */
 function seedShopSetup(){
   var seed = [
-    { name:'Joe', salt:'belles1seed', hash:'c71cbbe0-18c8b8ff', role:'owner' },
+    { name:'Joe', salt:'belles1seed', hash:'462006fc-e7870d3b', role:'owner' },
     { name:'Don', salt:'belles2seed', hash:'7270ed4-5cac777f',  role:'staff' },
     { name:'Ken', salt:'belles3seed', hash:'421c6a00-b6944118', role:'staff' }
   ];
@@ -10470,6 +10851,14 @@ function seedShopSetup(){
     if(!have[u.name]) DB.users.push({
       name:u.name, salt:u.salt, hash:u.hash, role:u.role, createdAt:stamp()
     });
+  });
+  // Joe's PIN was changed from the first seeded value to 0483. Update it in
+  // place, but only if it still holds that original seeded hash — so a PIN the
+  // owner set themselves in Setup is never overwritten.
+  DB.users.forEach(function(u){
+    if(u.name === 'Joe' && u.salt === 'belles1seed' && u.hash === 'c71cbbe0-18c8b8ff'){
+      u.hash = '462006fc-e7870d3b';
+    }
   });
 
   DB.sync = DB.sync || {};
