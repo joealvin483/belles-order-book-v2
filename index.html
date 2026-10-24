@@ -939,6 +939,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   .qlabel{display:block;border:1px solid #000;border-radius:6px;
     padding:7px;margin:0 0 6px;break-inside:avoid;page-break-inside:avoid;
     text-align:center;line-height:1.3}
+  .qlabel .ql-when{font-size:11px;font-weight:700;margin:0 0 3px;letter-spacing:.01em}
   .qlabel .ql-qr{margin:0 auto 2px}
   .qlabel .ql-qr .qrimg{display:block;margin:0 auto}
   .qlabel .ql-no{font-size:11px;font-weight:700;letter-spacing:.08em}
@@ -970,11 +971,14 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
     display:flex;flex-direction:column}
   .a4lab .a4-qr{position:absolute;top:0;right:0;width:16mm;height:16mm}
   .a4lab .a4-qr .qrimg{width:16mm;height:16mm;max-width:16mm}
+  /* Processed date/time, first line of the tag, bold; stops short of the QR. */
+  .a4lab .a4-when{font-size:9.5pt;font-weight:700;line-height:1.15;color:#000;
+    padding-right:18mm;margin:0 0 .4mm;white-space:nowrap}
   .a4lab .a4-no{font-family:var(--posmono);font-weight:400;font-size:10pt;letter-spacing:.04em}
   .a4lab .a4-part{font-family:var(--sans);font-weight:400;font-size:8pt;margin-left:6mm}
   /* The name is the biggest thing on the label; it wraps rather than overflow,
      and stops short of the QR so the two never collide. */
-  .a4lab .a4-name{font-size:14pt;font-weight:600;line-height:1.1;margin:2mm 0 0;
+  .a4lab .a4-name{font-size:14pt;font-weight:600;line-height:1.1;margin:1mm 0 0;
     color:#111;text-transform:uppercase;padding-right:18mm;word-break:break-word}
   .a4lab .a4-meta{font-size:9pt;margin-top:1.2mm;font-weight:400;color:#333}
   .a4lab .a4-item{font-size:11pt;font-weight:500;margin-top:1.5mm;color:#111;
@@ -994,7 +998,7 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
     text-transform:uppercase;color:#B33A5B;border-bottom:.4pt solid #ccc;
     padding-bottom:.6mm;margin-bottom:1.2mm}
   .a4lab .a4-m{display:flex;align-items:baseline;gap:1.2mm;font-size:8.5pt;
-    line-height:1.42;break-inside:avoid}
+    line-height:1.3;break-inside:avoid}
   .a4lab .a4-m b{width:6.5mm;flex:none;font-weight:600;color:#111}
   .a4lab .a4-v{font-family:var(--posmono);font-size:7.5pt;width:15mm;
     white-space:nowrap;flex:none;font-weight:400;color:#222}
@@ -1923,7 +1927,7 @@ var KEY = 'belles_order_book_v1';
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B53';
+var APP_BUILD = 'B55';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -6101,7 +6105,7 @@ function labelBatch(source){
     if(labelBlockedReason(o, parseInt(o.lineCount||1,10) > 1)) return;
     out.push(o);
   });
-  return { ready: out, skipped: list.length - out.length };
+  return { ready: oldestFirst(out), skipped: list.length - out.length };
 }
 
 /* The A4 sheet label, laid out for the master tailor rather than for scanning.
@@ -6148,8 +6152,10 @@ function a4LabelHTML(o){
   var garter = '<span class="a4-garter">Back garter: ' +
                (o.backGarter ? 'Yes' : 'No') + '</span>';
 
+  var when = processedText(o);
   return '<div class="a4lab">' +
     '<div class="a4-qr">' + orderQRImg(o, 16) + '</div>' +
+    (when ? '<div class="a4-when">' + esc(when) + '</div>' : '') +
     '<div class="a4-no">' + esc(o.orderId) +
       (o.lineCount > 1 ? '<span class="a4-part">' + o.lineNo + ' of ' + o.lineCount + '</span>' : '') +
     '</div>' +
@@ -6299,7 +6305,9 @@ function printPicker(source){
 function runPrint(source){
   var isRep = (source === 'report');
   var want  = PRINT_WANT;
-  var list  = isRep ? reportRows() : filteredOrders();
+  // Oldest order first, so the summary sheet runs in the same order as the
+  // tags printed after it.
+  var list  = oldestFirst(isRep ? reportRows() : filteredOrders());
   if(!list.length){ toast('Nothing matches those filters'); return; }
   if(!want.list && !want.lab){
     toast('Pick the summary sheet, the tags, or both');
@@ -6590,7 +6598,9 @@ function qrLabelHTML(o){
   // line into wrapped fragments.
   var meta = [o.companySchool, o.department].filter(Boolean).map(esc).join(' / ');
 
+  var when = processedText(o);
   return '<div class="qlabel">' +
+    (when ? '<div class="ql-when">' + esc(when) + '</div>' : '') +
     '<div class="ql-qr">' + orderQRImg(o, 40) + '</div>' +
     '<div class="ql-no">' + esc(o.orderId) + '</div>' +
     (partOf ? '<div class="ql-part">' + partOf + '</div>' : '') +
@@ -6694,6 +6704,7 @@ function printAllPendingLabels(){
     return;
   }
   if(skipped) toast(skipped + ' skipped — details still missing');
+  list = oldestFirst(list);
   setPrintStyle(DB.paper === 'A4' ? 'report' : 'label');
   var area = $('printArea');
   area.className = 'qlabels';
@@ -7344,6 +7355,83 @@ function stampNice(iso){
   if(isNaN(d)) return '';
   return d.toLocaleDateString('en-PH',{day:'numeric',month:'short',year:'numeric'}) + ' ' +
          String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+/* ---------- when an order was processed ----------
+   Printed bold at the top of every tag, written the shop's way:
+   "Oct. 2, 2026. 9:00 am". It is the moment the garment was keyed in on the
+   tablet, which stays put however many times the order is edited afterwards.
+
+   Where that moment is read from, best first:
+     1. The record id. Every order the app makes is named 'o' + Date.now() at
+        the instant Save was pressed, so the exact time is built into it and
+        nothing — not the sheet, not a restore — can turn it into a bare date.
+     2. createdAt, but only when it carries a real time of day. Records that
+        went through the Google Sheet or an import can come back with the date
+        alone, which reads as midnight; those printed as 12:00 am.
+     3. The earliest payment or history entry with a real time.
+     4. The slip date alone, with no time, rather than inventing one. */
+var TAG_MONTHS = ['Jan.','Feb.','Mar.','Apr.','May','Jun.','Jul.','Aug.','Sep.','Oct.','Nov.','Dec.'];
+function hasClock(d){
+  return !!(d.getHours() || d.getMinutes() || d.getSeconds() || d.getMilliseconds());
+}
+function timeFromRecordId(id){
+  var m = String(id || '').match(/^[ot](\d{13})/);
+  if(!m) return null;
+  var d = new Date(parseInt(m[1], 10));
+  if(isNaN(d) || d.getFullYear() < 2024 || d.getFullYear() > 2100) return null;
+  return d;
+}
+function processedDate(o){
+  if(!o) return null;
+  var d = timeFromRecordId(o.id) || timeFromRecordId(o.ticketId);
+  if(d) return { d: d, timed: true };
+  if(o.createdAt){
+    d = new Date(o.createdAt);
+    if(!isNaN(d) && hasClock(d)) return { d: d, timed: true };
+  }
+  var stamps = (o.payments || []).concat(o.log || []).map(function(e){
+    return new Date(e && e.at);
+  }).filter(function(x){ return !isNaN(x) && hasClock(x); })
+    .sort(function(a, b){ return a - b; });
+  if(stamps.length) return { d: stamps[0], timed: true };
+  var day = o.slipDate || o.dateOrdered || '';
+  if(day){
+    var dd = new Date(day + (String(day).length === 10 ? 'T00:00:00' : ''));
+    if(!isNaN(dd)) return { d: dd, timed: false };
+  }
+  return null;
+}
+function processedText(o){
+  var p = processedDate(o);
+  if(!p) return '';
+  var d = p.d;
+  var txt = TAG_MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + '.';
+  if(!p.timed) return txt;
+  var h = d.getHours(), ap = h < 12 ? 'am' : 'pm';
+  h = h % 12 || 12;
+  return txt + ' ' + h + ':' + String(d.getMinutes()).padStart(2,'0') + ' ' + ap;
+}
+/* Prints run oldest order first, newest last. Garments are kept together with
+   the rest of their order (in line order, 1 of 3, 2 of 3 …) and the order takes
+   its place from its earliest garment — so a piece added to an old order later
+   still prints beside that order, not at the end of the pile. Records with no
+   date at all go last. */
+function oldestFirst(list){
+  var LAST = 8.64e15, first = {};
+  var ms = function(o){ var p = processedDate(o); return p ? p.d.getTime() : LAST; };
+  (list || []).forEach(function(o){
+    var t = o.ticketId || o.id, m = ms(o);
+    if(!(t in first) || m < first[t]) first[t] = m;
+  });
+  return (list || []).slice().sort(function(a, b){
+    var ta = a.ticketId || a.id, tb = b.ticketId || b.id;
+    if(ta === tb) return num(a.lineNo) - num(b.lineNo);
+    if(first[ta] !== first[tb]) return first[ta] < first[tb] ? -1 : 1;
+    var oa = String(a.orderId || ''), ob = String(b.orderId || '');
+    if(oa !== ob) return oa < ob ? -1 : 1;
+    return ta < tb ? -1 : 1;
+  });
 }
 
 /* ---------- payments ----------
