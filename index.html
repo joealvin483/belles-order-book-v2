@@ -1927,7 +1927,7 @@ var KEY = 'belles_order_book_v1';
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B55';
+var APP_BUILD = 'B56';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -6307,7 +6307,7 @@ function runPrint(source){
   var want  = PRINT_WANT;
   // Oldest order first, so the summary sheet runs in the same order as the
   // tags printed after it.
-  var list  = oldestFirst(isRep ? reportRows() : filteredOrders());
+  var list  = oldestFirst(isRep ? reportRows() : filteredOrders(), true);
   if(!list.length){ toast('Nothing matches those filters'); return; }
   if(!want.list && !want.lab){
     toast('Pick the summary sheet, the tags, or both');
@@ -7412,25 +7412,33 @@ function processedText(o){
   h = h % 12 || 12;
   return txt + ' ' + h + ':' + String(d.getMinutes()).padStart(2,'0') + ' ' + ap;
 }
-/* Prints run oldest order first, newest last. Garments are kept together with
-   the rest of their order (in line order, 1 of 3, 2 of 3 …) and the order takes
-   its place from its earliest garment — so a piece added to an old order later
-   still prints beside that order, not at the end of the pile. Records with no
-   date at all go last. */
-function oldestFirst(list){
-  var LAST = 8.64e15, first = {};
+/* Prints run oldest first, newest last, by the date the page actually shows,
+   so the pile reads in order from top to bottom.
+
+   Tags (the default) sort garment by garment on the processed date printed at
+   the top of each tag. A piece added to an old order weeks later therefore
+   takes its own place by its own date — keeping it beside the rest of its
+   order made the dates on the tags jump backwards and forwards.
+
+   The summary sheet (byOrderDate) sorts on the Ordered date its column shows,
+   then by the time each slip was keyed in on that day.
+
+   Ties fall back to the order number and garment line (1 of 3, 2 of 3 …), so
+   pieces saved together stay together. Records with no date go last. */
+function oldestFirst(list, byOrderDate){
+  var LAST = 8.64e15;
   var ms = function(o){ var p = processedDate(o); return p ? p.d.getTime() : LAST; };
-  (list || []).forEach(function(o){
-    var t = o.ticketId || o.id, m = ms(o);
-    if(!(t in first) || m < first[t]) first[t] = m;
-  });
+  var day = function(o){ return String(o.dateOrdered || o.slipDate || '9999-99-99'); };
   return (list || []).slice().sort(function(a, b){
-    var ta = a.ticketId || a.id, tb = b.ticketId || b.id;
-    if(ta === tb) return num(a.lineNo) - num(b.lineNo);
-    if(first[ta] !== first[tb]) return first[ta] < first[tb] ? -1 : 1;
+    if(byOrderDate){
+      var da = day(a), db = day(b);
+      if(da !== db) return da < db ? -1 : 1;
+    }
+    var ma = ms(a), mb = ms(b);
+    if(ma !== mb) return ma < mb ? -1 : 1;
     var oa = String(a.orderId || ''), ob = String(b.orderId || '');
     if(oa !== ob) return oa < ob ? -1 : 1;
-    return ta < tb ? -1 : 1;
+    return num(a.lineNo) - num(b.lineNo);
   });
 }
 
