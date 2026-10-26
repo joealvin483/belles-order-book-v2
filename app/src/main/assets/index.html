@@ -1290,12 +1290,16 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
       <div class="row c2">
         <div class="field"><label>School / company</label>
           <div class="msel" id="mselSchool"></div></div>
-        <div class="field"><label>Product</label>
-          <div class="msel" id="mselProduct"></div></div>
+        <div class="field"><label>Department</label>
+          <div class="msel" id="mselDept"></div></div>
       </div>
       <div class="row c2">
+        <div class="field"><label>Product</label>
+          <div class="msel" id="mselProduct"></div></div>
         <div class="field"><label>Status</label>
           <div class="msel" id="mselStatus"></div></div>
+      </div>
+      <div class="row c2">
         <div class="field"><label for="fText">Name or order no.</label>
           <input type="text" id="fText" oninput="renderSummary()" placeholder="Type, then Add to tag list"
                  onkeydown="if(event.key==='Enter'){event.preventDefault();addPickFromBox('summary');}">
@@ -1927,7 +1931,7 @@ var KEY = 'belles_order_book_v1';
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B56';
+var APP_BUILD = 'B57';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -8970,7 +8974,8 @@ function updateDueBadge(){
    boxes. Picking nothing means no restriction, so an untouched filter behaves
    exactly as "all" did before. State lives here, not in the DOM, so redrawing
    the list never loses a selection. */
-var FILT = { school: [], product: [], status: [] };
+var FILT = { school: [], dept: [], product: [], status: [] };
+var MSEL_KEYS = ['school','dept','product','status'];
 
 var STATUS_OPTS = [
   ['unpaid',      'With a balance'],
@@ -8990,7 +8995,13 @@ function mselOptions(key){
   if(key === 'status') return STATUS_OPTS;
   var seen = {}, out = [];
   (DB.orders || []).forEach(function(o){
-    var v = (key === 'school') ? o.companySchool : o.productName;
+    // Departments follow the school filter: with RMMC picked, only RMMC's
+    // departments are offered, so the list stays short and every choice
+    // actually matches something.
+    if(key === 'dept' && FILT.school.length &&
+       FILT.school.indexOf(o.companySchool || '') === -1) return;
+    var v = (key === 'school') ? o.companySchool
+          : (key === 'dept')   ? o.department : o.productName;
     if(v && !seen[v]){ seen[v] = 1; out.push([v, v]); }
   });
   out.sort(function(a,b){ return a[0] < b[0] ? -1 : 1; });
@@ -9000,6 +9011,7 @@ function mselOptions(key){
 function mselLabel(key){
   var picked = FILT[key];
   var allTxt = key === 'school' ? 'All schools'
+             : key === 'dept'    ? 'All departments'
              : key === 'product' ? 'All products' : 'Everything';
   if(!picked.length) return allTxt;
   if(picked.length === 1){
@@ -9020,7 +9032,7 @@ function mselToggle(key, ev){
   if(!box) return;
   var open = box.getAttribute('data-open') === '1';
   // only one panel open at a time
-  ['school','product','status'].forEach(function(k){
+  MSEL_KEYS.forEach(function(k){
     var b = $('msel' + k.charAt(0).toUpperCase() + k.slice(1));
     if(b) b.setAttribute('data-open', '0');
   });
@@ -9034,16 +9046,26 @@ function mselSet(key, value, on, ev){
   var i = arr.indexOf(value);
   if(on && i === -1) arr.push(value);
   if(!on && i > -1) arr.splice(i, 1);
+  if(key === 'school') pruneDeptPicks();
   renderMsels();
   renderSummary();
 }
 function mselClear(key, ev){
   if(ev) ev.__msel = 1;
-  FILT[key] = []; renderMsels(); renderSummary();
+  FILT[key] = [];
+  if(key === 'school') pruneDeptPicks();
+  renderMsels(); renderSummary();
+}
+/* A department ticked earlier that the new school choice no longer offers
+   would quietly filter everything out, so it is dropped. */
+function pruneDeptPicks(){
+  var ok = {};
+  mselOptions('dept').forEach(function(o){ ok[o[0]] = 1; });
+  FILT.dept = FILT.dept.filter(function(d){ return ok[d]; });
 }
 
 function renderMsels(){
-  ['school','product','status'].forEach(function(key){
+  MSEL_KEYS.forEach(function(key){
     var id = 'msel' + key.charAt(0).toUpperCase() + key.slice(1);
     var box = $(id);
     if(!box) return;
@@ -9081,7 +9103,7 @@ document.addEventListener('click', function(e){
   var t = e.target;
   if(t && t.closest && t.closest('.msel')) return;   // inside the widget
   var any = false;
-  ['school','product','status'].forEach(function(k){
+  MSEL_KEYS.forEach(function(k){
     var b = $('msel' + k.charAt(0).toUpperCase() + k.slice(1));
     if(b && b.getAttribute('data-open') === '1'){ b.setAttribute('data-open','0'); any = true; }
   });
@@ -9094,6 +9116,7 @@ function filterDefs(){
     from:    $('fFrom')  ? $('fFrom').value  : '',
     to:      $('fTo')    ? $('fTo').value    : '',
     schools:  FILT.school.slice(),
+    depts:    FILT.dept.slice(),
     products: FILT.product.slice(),
     statuses: FILT.status.slice(),
     review: $('fReview') ? $('fReview').value : 'all',
@@ -9116,7 +9139,7 @@ function markCustom(){ if($('fQuick')) $('fQuick').value = 'custom'; renderSumma
 function resetFilters(){
   ['fFrom','fTo','fText'].forEach(function(k){ if($(k)) $(k).value = ''; });
   if($('fQuick')) $('fQuick').value = 'all';
-  FILT.school = []; FILT.product = []; FILT.status = [];
+  FILT.school = []; FILT.dept = []; FILT.product = []; FILT.status = [];
   if($('fBasis')) $('fBasis').value = 'ordered';
   renderMsels();
   renderSummary();
@@ -9134,6 +9157,7 @@ function filteredOrders(){
     if(f.from && (!d || d < f.from)) return false;
     if(f.to   && (!d || d > f.to))   return false;
     if(f.schools.length  && f.schools.indexOf(o.companySchool || '') === -1) return false;
+    if(f.depts.length    && f.depts.indexOf(o.department || '')     === -1) return false;
     if(f.products.length && f.products.indexOf(o.productName || '')  === -1) return false;
 
     // Kept apart from the work statuses on purpose: an audit pass cuts across
@@ -9184,6 +9208,7 @@ function filterCaption(){
   if(f.from || f.to) bits.push((f.from ? nice(f.from) : 'the beginning') + ' to ' + (f.to ? nice(f.to) : 'today'));
   else bits.push('all dates');
   if(f.schools.length)  bits.push(f.schools.join(' + '));
+  if(f.depts.length)    bits.push(f.depts.join(' + '));
   if(f.products.length) bits.push(f.products.join(' + '));
   if(f.statuses.length){
     var names = f.statuses.map(function(v){
