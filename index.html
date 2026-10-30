@@ -924,6 +924,14 @@ input.missing{border-color:var(--bad);box-shadow:0 0 0 3.5px rgba(190,60,60,.18)
   .report .mtab tr.nomeas td{background:#F2F2F2;color:#555}
   .report .mtab tr.grp td{background:#E4E4E4;font-weight:700;font-size:8.5px;
     letter-spacing:.05em;padding:4px 3px;border-top:2px solid #000}
+  /* summary sheet: a band per department, a lighter band per date inside it */
+  .report .olist tr.dgrp td{background:#DCDCDC!important;font-weight:700;font-size:9pt;
+    letter-spacing:.04em;text-transform:uppercase;border-top:1.5pt solid #000!important;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;break-after:avoid;page-break-after:avoid}
+  .report .olist tr.dgrp td small{font-weight:400;text-transform:none;letter-spacing:0;font-size:7.5pt}
+  .report .olist tr.tgrp td{background:#F3F3F3!important;font-weight:600;font-size:8pt;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;break-after:avoid;page-break-after:avoid}
+  .report .olist tr.tgrp td small{font-weight:400;font-size:7pt;color:#444}
 
   /* a run of cutting slips, one per length of paper */
   body>.pos-multi{display:block!important;color:#000}
@@ -1931,7 +1939,7 @@ var KEY = 'belles_order_book_v1';
    to tell from a printout which build produced it, which cost us several rounds
    of chasing bugs that had already been fixed in a version not yet installed.
    Bump this whenever index.html changes. */
-var APP_BUILD = 'B57';
+var APP_BUILD = 'B58';
 var DB = {
   orders: [], schools: [], departments: [], products: [], addons: [], counter: 0, lastBackup: null,
   device: {name:'', code:''}, autoBackup: 'every', backupFormat: 'json',
@@ -6267,7 +6275,7 @@ var PRINT_COLS = [
   ['school',  'School',   16, function(g,o){ return esc(o.companySchool||''); }],
   ['dept',    'Dept',     14, function(g,o){ return esc(o.department||''); }],
   ['prod',    'Garments', 26, function(g,o){ return esc(g.products)+(g.count>1?' ('+g.count+')':''); }],
-  ['ordered', 'Ordered',  16, function(g){ return nice(g.dateOrdered); }],
+  ['ordered', 'Ordered',  27, function(g){ return esc(rowProcessedText(g)); }],
   ['due',     'Due',      16, function(g){ return nice(g.dateDue); }],
   ['total',   'Total',    17, function(g){ return peso(g.total); }, 1],
   ['paid',    'Paid',     17, function(g){ return peso(g.paid); }, 1],
@@ -6377,6 +6385,23 @@ function printTotalsBlock(list){
   '</tbody></table>';
 }
 
+/* The processed moment for a summary row: a garment's own, or for a whole
+   order the earliest of its garments (the slip itself, not a piece added later).
+   Same source as the date printed at the top of the tags. */
+function rowProcessed(g){
+  var best = null;
+  (g.lines || [g.head]).forEach(function(o){
+    var p = processedDate(o);
+    if(p && (!best || p.d < best.d)) best = p;
+  });
+  return best;
+}
+function rowProcessedText(g){
+  var p = rowProcessed(g);
+  if(!p) return g.dateOrdered ? nice(g.dateOrdered) : '';
+  return fmtProcessed(p);
+}
+
 function printListBlock(list){
   var showMeas = !!PRINT_WANT.meas;
   var cols = PRINT_COLS.filter(function(c){ return PRINT_WANT[c[0]]; });
@@ -6411,14 +6436,58 @@ function printListBlock(list){
     (showMeas ? MEAS.map(function(m){ return '<th class="c">'+m.label+'</th>'; }).join('') : '')+
     '</tr></thead>';
 
-  var body = rows.map(function(r){
+  // Separated by department (with its school beside it, so RMMC BSN and
+  // another school's BSN never merge), then by date inside each department,
+  // oldest first. The date is the processed date printed on the tags.
+  var span = 2 + cols.length + (showMeas ? MEAS.length : 0);
+  var items = rows.map(function(r){
     var o = showMeas ? r : r.head;
-    var g = showMeas ? { head:o, orderNo:o.orderId, products:o.productName, count:1,
+    var g = showMeas ? { head:o, lines:[o], orderNo:o.orderId, products:o.productName, count:1,
                          total:num(o.orderTotal), paid:num(o.amountPaid),
                          balance:num(o.balance), dateOrdered:o.dateOrdered, dateDue:o.dateDue }
                      : r;
+    var p = rowProcessed(g);
+    var dept = String(o.department || '').trim(), school = String(o.companySchool || '').trim();
+    return { o:o, g:g,
+             dept: dept, school: school,
+             ms: p ? p.d.getTime() : 8.64e15,
+             day: p ? ymd(p.d) : '',
+             dayText: p ? (TAG_MONTHS[p.d.getMonth()] + ' ' + p.d.getDate() + ', ' + p.d.getFullYear())
+                        : 'No date' };
+  });
+  var dKey = function(it){ return (it.dept ? '0' : '1') + it.dept.toUpperCase() + '|' + it.school.toUpperCase(); };
+  items.sort(function(a, b){
+    var ka = dKey(a), kb = dKey(b);
+    if(ka !== kb) return ka < kb ? -1 : 1;
+    if(a.ms !== b.ms) return a.ms < b.ms ? -1 : 1;
+    return String(a.g.orderNo) < String(b.g.orderNo) ? -1 : 1;
+  });
+  var unit = showMeas ? 'garment' : 'order';
+  var plural = function(n){ return n + ' ' + unit + (n === 1 ? '' : 's'); };
+  var deptCount = {}, dayCount = {};
+  items.forEach(function(it){
+    var k = dKey(it); deptCount[k] = (deptCount[k] || 0) + 1;
+    var kd = k + '#' + it.day; dayCount[kd] = (dayCount[kd] || 0) + 1;
+  });
+
+  var lastDept = null, lastDay = null;
+  var body = items.map(function(it){
+    var o = it.o, g = it.g, band = '';
+    var k = dKey(it);
+    if(k !== lastDept){
+      band += '<tr class="dgrp"><td colspan="'+span+'">'+
+        esc(it.dept || 'No department') +
+        (it.school ? ' <small>· ' + esc(it.school) + '</small>' : '') +
+        ' <small>— ' + plural(deptCount[k]) + '</small></td></tr>';
+      lastDept = k; lastDay = null;
+    }
+    if(it.day !== lastDay){
+      band += '<tr class="tgrp"><td colspan="'+span+'">'+ esc(it.dayText) +
+        ' <small>— ' + plural(dayCount[k + '#' + it.day]) + '</small></td></tr>';
+      lastDay = it.day;
+    }
     var src = showMeas ? tapeSrc(o) : null;
-    return '<tr'+(showMeas && !hasOrderMeasurements(o) ? ' class="nomeas"' : '')+'>'+
+    return band + '<tr'+(showMeas && !hasOrderMeasurements(o) ? ' class="nomeas"' : '')+'>'+
       '<td>'+esc(g.orderNo)+'</td>'+
       '<td>'+esc(o.lastName ? o.lastName+', '+o.firstName : '—')+'</td>'+
       cols.map(function(c){
@@ -7406,8 +7475,8 @@ function processedDate(o){
   }
   return null;
 }
-function processedText(o){
-  var p = processedDate(o);
+function processedText(o){ return fmtProcessed(processedDate(o)); }
+function fmtProcessed(p){
   if(!p) return '';
   var d = p.d;
   var txt = TAG_MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + '.';
